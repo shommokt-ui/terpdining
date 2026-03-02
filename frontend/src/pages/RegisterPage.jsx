@@ -33,7 +33,7 @@ export default function RegisterPage() {
         <p className="text-umd-body text-sm mb-6">Get started with TerpDining</p>
 
         {error && (
-          <div className="bg-red-50 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">{error}</div>
+          <div className="bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm rounded-lg px-4 py-3 mb-4">{error}</div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -44,7 +44,7 @@ export default function RegisterPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full border border-umd-gray rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
+              className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
               placeholder="terp@umd.edu"
             />
           </div>
@@ -56,7 +56,7 @@ export default function RegisterPage() {
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-umd-gray rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
+              className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
             />
           </div>
           <button
@@ -67,6 +67,11 @@ export default function RegisterPage() {
             {loading ? 'Creating account...' : 'Create Account'}
           </button>
         </form>
+
+        <p className="mt-3 text-center text-[11px] text-umd-gray-dark">
+          By creating an account you agree to our{' '}
+          <Link to="/privacy" className="underline hover:text-umd-red">Privacy Policy</Link>.
+        </p>
 
         <p className="mt-6 text-center text-sm text-umd-body">
           Already have an account?{' '}

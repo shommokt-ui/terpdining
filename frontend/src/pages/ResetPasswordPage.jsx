@@ -65,7 +65,7 @@ export default function ResetPasswordPage() {
         <p className="text-umd-body text-sm mb-6">Pick a new password to get back in.</p>
 
         {error && (
-          <div className="bg-red-50 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">{error}</div>
+          <div className="bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm rounded-lg px-4 py-3 mb-4">{error}</div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -77,7 +77,7 @@ export default function ResetPasswordPage() {
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-umd-gray rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
+              className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
               autoFocus
             />
           </div>
@@ -89,7 +89,7 @@ export default function ResetPasswordPage() {
               minLength={6}
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              className="w-full border border-umd-gray rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
+              className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
             />
           </div>
           <button

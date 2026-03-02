@@ -32,7 +32,7 @@ export default function ForgotPasswordPage() {
 
         {submitted ? (
           <div className="space-y-4">
-            <div className="bg-green-50 border border-green-200 text-green-800 text-sm rounded-lg px-4 py-3">
+            <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800/50 text-green-800 dark:text-green-300 text-sm rounded-lg px-4 py-3">
               If <span className="font-semibold">{email}</span> is registered, a reset link is on its way.
               Check your inbox (and spam folder).
             </div>
@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
         ) : (
           <>
             {error && (
-              <div className="bg-red-50 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">{error}</div>
+              <div className="bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm rounded-lg px-4 py-3 mb-4">{error}</div>
             )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -56,7 +56,7 @@ export default function ForgotPasswordPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full border border-umd-gray rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
+                  className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
                   placeholder="terp@umd.edu"
                   autoFocus
                 />

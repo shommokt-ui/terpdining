@@ -152,6 +152,10 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=PASSWORD_MIN_LEN)
 
 
+class DeleteAccountRequest(BaseModel):
+    current_password: str
+
+
 @router.post("/change-password")
 def change_password(
     body: ChangePasswordRequest,
@@ -176,6 +180,28 @@ def change_password(
         "UPDATE users SET password_hash = ? WHERE id = ?",
         (_hash_password(body.new_password), user["id"]),
     )
+    conn.commit()
+    return {"ok": True}
+
+
+@router.post("/delete-account")
+def delete_account(
+    body: DeleteAccountRequest,
+    user=Depends(get_current_user),
+    conn=Depends(get_db),
+):
+    """Permanently delete the current user's account and all their data."""
+    row = conn.execute("SELECT password_hash FROM users WHERE id = ?", (user["id"],)).fetchone()
+    if not row or not _verify_password(body.current_password, row["password_hash"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Current password is incorrect",
+        )
+
+    # food_logs and recipe_sessions aren't ON DELETE CASCADE, so clear them first.
+    conn.execute("DELETE FROM food_logs WHERE user_id = ?", (user["id"],))
+    conn.execute("DELETE FROM recipe_sessions WHERE user_id = ?", (user["id"],))
+    conn.execute("DELETE FROM users WHERE id = ?", (user["id"],))
     conn.commit()
     return {"ok": True}
 
