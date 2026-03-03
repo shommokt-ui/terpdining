@@ -1,7 +1,11 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NavigationStateProvider } from './context/NavigationStateContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { ToastProvider } from './context/ToastContext';
 import Navbar from './components/Navbar';
+import BottomNav from './components/BottomNav';
+import AnnouncementBanner from './components/AnnouncementBanner';
 import ErrorBoundary from './components/ErrorBoundary';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -11,6 +15,7 @@ import MenuPage from './pages/MenuPage';
 import RecipePage from './pages/RecipePage';
 import TrackerPage from './pages/TrackerPage';
 import SettingsPage from './pages/SettingsPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -21,11 +26,16 @@ function ProtectedRoute({ children }) {
 
 function AppRoutes() {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return null;
+
+  const hideNavbar = location.pathname === '/login';
 
   return (
     <>
-      <Navbar />
+      {!hideNavbar && <Navbar />}
+      {!hideNavbar && <AnnouncementBanner />}
+      <div key={location.pathname} className={`page-enter ${user ? 'pb-16 md:pb-0' : ''}`}>
       <Routes>
         <Route path="/login" element={user ? <Navigate to="/menu" /> : <LoginPage />} />
         <Route path="/register" element={user ? <Navigate to="/menu" /> : <RegisterPage />} />
@@ -35,8 +45,11 @@ function AppRoutes() {
         <Route path="/recipe" element={<ProtectedRoute><RecipePage /></ProtectedRoute>} />
         <Route path="/tracker" element={<ProtectedRoute><TrackerPage /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
         <Route path="*" element={<Navigate to={user ? '/menu' : '/login'} replace />} />
       </Routes>
+      </div>
+      {user && <BottomNav />}
     </>
   );
 }
@@ -44,13 +57,17 @@ function AppRoutes() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <BrowserRouter>
-        <AuthProvider>
-          <NavigationStateProvider>
-            <AppRoutes />
-          </NavigationStateProvider>
-        </AuthProvider>
-      </BrowserRouter>
+      <ThemeProvider>
+        <ToastProvider>
+          <BrowserRouter>
+            <AuthProvider>
+              <NavigationStateProvider>
+                <AppRoutes />
+              </NavigationStateProvider>
+            </AuthProvider>
+          </BrowserRouter>
+        </ToastProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }

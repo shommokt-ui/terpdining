@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import Logo from './Logo';
+import ThemeToggle from './ThemeToggle';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isActive = (path) => location.pathname === path;
@@ -21,32 +25,36 @@ export default function Navbar() {
       <div className="bg-umd-red h-11 flex items-center px-4 z-50 relative">
         <div className="umd-container w-full flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 text-white font-extrabold text-lg uppercase tracking-wide shrink-0">
-            <span className="text-umd-gold text-xl">T</span>
+            <Logo className="w-7 h-7" />
             TerpDining
           </Link>
 
-          {/* hamburger */}
-          <button
-            className="md:hidden p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
-            onClick={() => setMobileOpen((o) => !o)}
-            aria-label="Toggle menu"
-          >
-            {mobileOpen ? (
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            )}
-          </button>
+          <div className="flex items-center gap-1">
+            <ThemeToggle theme={theme} onToggle={toggleTheme} variant="onRed" />
+
+            {/* hamburger */}
+            <button
+              className="md:hidden p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
+              onClick={() => setMobileOpen((o) => !o)}
+              aria-label="Toggle menu"
+            >
+              {mobileOpen ? (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
       {/* desktop nav */}
       {!(hideAuthLinks && !user) && (
-        <nav className="bg-white border-b border-umd-gray shadow-sm hidden md:block">
+        <nav className="bg-white dark:bg-[#1c1c1c] border-b border-umd-gray shadow-sm hidden md:block">
           <div className="umd-container px-4 h-11 flex items-center justify-between">
             {user ? (
               <>

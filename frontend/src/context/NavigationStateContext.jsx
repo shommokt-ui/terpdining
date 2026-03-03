@@ -13,6 +13,7 @@ const defaultMenu = {
   excludeTags: [],
   legendOpen: false,
   showFavManager: false,
+  searchQuery: '',
 };
 
 const defaultTracker = {
