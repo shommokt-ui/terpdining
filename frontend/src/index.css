@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --breakpoint-xs: 480px;
   --color-umd-red: #e21833;
@@ -17,6 +19,17 @@
 
 html {
   scroll-behavior: smooth;
+}
+
+.dark {
+  --color-umd-black: #f2f2f2;
+  --color-umd-white: #1c1c1c;
+  --color-umd-body: #b3b3b3;
+  --color-umd-gray-darker: #e0e0e0;
+  --color-umd-gray-dark: #999999;
+  --color-umd-gray: #333333;
+  --color-umd-gray-light: #262626;
+  --color-umd-gray-lightest: #101010;
 }
 
 body {
@@ -68,4 +81,66 @@ a, button {
 
 .umd-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-umd-gray-light) 25%,
+    var(--color-umd-gray) 50%,
+    var(--color-umd-gray-light) 75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite linear;
+  border-radius: 0.5rem;
+}
+
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.page-enter {
+  animation: page-in 0.2s ease-out;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.toast-enter {
+  animation: toast-in 0.2s ease-out;
+}
+
+@keyframes drawer-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.drawer-panel {
+  animation: drawer-in 0.25s ease-out;
+}
+
+.drawer-overlay {
+  animation: fade-in 0.2s ease-out;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--color-umd-white) inset;
+  -webkit-text-fill-color: var(--color-umd-black);
+  caret-color: var(--color-umd-black);
+  transition: background-color 0s 600000s, color 0s 600000s;
 }
