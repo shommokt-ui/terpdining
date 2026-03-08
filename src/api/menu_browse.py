@@ -58,6 +58,16 @@ def browse_menu(dt: str = Query(default=None)):
         latest_row = conn.execute("SELECT MAX(date) AS latest FROM menu_entries").fetchone()
         latest_date = latest_row["latest"] if latest_row else None
 
-        return {"date": menu_date, "halls": halls, "latest_date": latest_date}
+        all_halls = [
+            r["name"]
+            for r in conn.execute("SELECT name FROM dining_halls ORDER BY name").fetchall()
+        ]
+
+        return {
+            "date": menu_date,
+            "halls": halls,
+            "latest_date": latest_date,
+            "all_halls": all_halls,
+        }
     finally:
         conn.close()
