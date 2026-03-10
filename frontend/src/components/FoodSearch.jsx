@@ -144,7 +144,7 @@ export default function FoodSearch({ mealType, onLog }) {
           onChange={(e) => handleQueryChange(e.target.value)}
           onFocus={() => results.length > 0 && setShowResults(true)}
           placeholder="Search dining hall food..."
-          className="w-full border border-umd-gray rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
+          className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
         />
         {searching && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -152,7 +152,7 @@ export default function FoodSearch({ mealType, onLog }) {
           </div>
         )}
         {showResults && results.length > 0 && (
-          <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-umd-gray rounded-lg shadow-lg max-h-60 overflow-y-auto">
+          <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white dark:bg-[#1c1c1c] border border-umd-gray rounded-lg shadow-lg max-h-60 overflow-y-auto">
             {results.map((item, i) => (
               <button
                 key={i}
@@ -182,8 +182,8 @@ export default function FoodSearch({ mealType, onLog }) {
                     onClick={() => { setPortion(pt); setQty(1); }}
                     className={`px-3 py-2 rounded-lg border text-xs transition-colors ${
                       portion?.id === pt.id
-                        ? 'border-umd-red bg-red-50 text-umd-red font-semibold'
-                        : 'border-umd-gray bg-white text-umd-body hover:border-umd-red hover:text-umd-red'
+                        ? 'border-umd-red bg-red-50 dark:bg-red-950/40 text-umd-red font-semibold'
+                        : 'border-umd-gray bg-white dark:bg-[#1c1c1c] text-umd-body hover:border-umd-red hover:text-umd-red'
                     }`}
                   >
                     {pt.label}
@@ -206,7 +206,7 @@ export default function FoodSearch({ mealType, onLog }) {
                   className={`w-9 h-9 rounded-lg border text-sm font-semibold transition-colors ${
                     qty === n
                       ? 'border-umd-red bg-umd-red text-white'
-                      : 'border-umd-gray bg-white text-umd-body hover:border-umd-red hover:text-umd-red'
+                      : 'border-umd-gray bg-white dark:bg-[#1c1c1c] text-umd-body hover:border-umd-red hover:text-umd-red'
                   }`}
                 >
                   {n}

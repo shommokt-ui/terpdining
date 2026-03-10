@@ -153,21 +153,24 @@ export default function DailySummary({ totals, goals }) {
 }
 
 function GoalRow({ label, current, target, color }) {
-  const pct = Math.min(Math.round((current / target) * 100), 100);
-  const hit = current >= target;
-  const barColor = hit ? '#16a34a' : color;
+  const ratio = current / target;
+  const pct = Math.min(Math.round(ratio * 100), 100);
+  const over = ratio > 1.15;
+  const hit = ratio >= 1 && !over;
+  const barColor = over ? '#dc2626' : hit ? '#16a34a' : color;
+  const textColor = over ? '#dc2626' : hit ? '#16a34a' : '#6b7280';
 
   return (
     <div className="flex items-center gap-3">
       <span className="text-xs font-medium text-umd-gray-dark w-14">{label}</span>
-      <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+      <div className="flex-1 h-1.5 rounded-full bg-gray-100 dark:bg-white/10 overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{ width: `${pct}%`, backgroundColor: barColor }}
         />
       </div>
-      <span className="text-xs font-semibold tabular-nums w-20 text-right" style={{ color: hit ? '#16a34a' : '#6b7280' }}>
-        {current} / {target}{hit ? ' ✓' : ''}
+      <span className="text-xs font-semibold tabular-nums w-24 text-right" style={{ color: textColor }}>
+        {current} / {target}{over ? ' over' : hit ? ' ✓' : ''}
       </span>
     </div>
   );
