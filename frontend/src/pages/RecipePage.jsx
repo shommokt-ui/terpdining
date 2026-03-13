@@ -126,7 +126,7 @@ export default function RecipePage() {
       fetchSessions();
     } catch (err) {
       const msg = err.message?.includes('No menu data')
-        ? `No menu data found for **${hall}** — **${meal}** on **${dt}**. Try a different date, meal, or dining hall.`
+        ? `No menu data found for **${hall}** (**${meal}**) on **${dt}**. Try a different date, meal, or dining hall.`
         : `Error: ${err.message}`;
       setMessages((prev) => [...prev, { role: 'assistant', content: msg }]);
       setShowForm(true);
@@ -174,7 +174,7 @@ export default function RecipePage() {
         fixed md:relative z-30 md:z-auto
         h-[calc(100vh-5.5rem)] w-72 md:w-64
         transition-all duration-200
-        bg-white border-r border-umd-gray
+        bg-white dark:bg-[#1c1c1c] border-r border-umd-gray
         flex flex-col overflow-hidden flex-shrink-0
       `}>
         <div className="p-3 border-b border-umd-gray">
@@ -187,7 +187,7 @@ export default function RecipePage() {
           {sessions.map((s) => (
             <div key={s.id}
               className={`group flex items-center gap-1 px-3 py-2.5 cursor-pointer text-sm border-b border-umd-gray-light transition-colors ${
-                activeSession === s.id ? 'bg-red-50 text-umd-red' : 'text-umd-black hover:bg-umd-gray-light'
+                activeSession === s.id ? 'bg-red-50 dark:bg-red-950/40 text-umd-red' : 'text-umd-black hover:bg-umd-gray-light'
               }`}>
               <button onClick={() => loadSession(s.id)} className="flex-1 text-left truncate">{s.title}</button>
               <button onClick={(e) => { e.stopPropagation(); handleDeleteSession(s.id); }}
@@ -199,14 +199,17 @@ export default function RecipePage() {
             </div>
           ))}
           {sessions.length === 0 && (
-            <div className="p-4 text-xs text-umd-body text-center">No recipe history yet</div>
+            <div className="p-4 text-center">
+              <div className="text-2xl mb-1">🐢</div>
+              <div className="text-xs text-umd-body">No recipe history yet. Your past sessions will show up here.</div>
+            </div>
           )}
         </div>
       </div>
 
       {/* main */}
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="px-3 py-2 border-b border-umd-gray bg-white flex items-center gap-2">
+        <div className="px-3 py-2 border-b border-umd-gray bg-white dark:bg-[#1c1c1c] flex items-center gap-2">
           <button onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-1.5 hover:bg-umd-gray-light rounded-lg transition-colors text-umd-gray-dark">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -234,7 +237,7 @@ export default function RecipePage() {
                   <label className="block text-sm font-medium text-umd-black mb-1">What are you craving?</label>
                   <input type="text" value={cuisine} onChange={(e) => setCuisine(e.target.value)}
                     placeholder="Asian, Mediterranean, comfort food, anything..."
-                    className="w-full border border-umd-gray rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent" />
+                    className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent" />
                 </div>
 
                 <div>
@@ -245,7 +248,7 @@ export default function RecipePage() {
                         className={`text-xs px-3 py-1.5 rounded-full font-medium border transition-colors ${
                           goals.includes(g)
                             ? 'bg-umd-red text-white border-umd-red'
-                            : 'bg-white text-umd-body border-umd-gray hover:border-umd-red hover:text-umd-red'
+                            : 'bg-white dark:bg-[#1c1c1c] text-umd-body border-umd-gray hover:border-umd-red hover:text-umd-red'
                         }`}>{g}</button>
                     ))}
                   </div>
@@ -255,14 +258,14 @@ export default function RecipePage() {
                   <div>
                     <label className="block text-sm font-medium text-umd-black mb-1">Dining Hall</label>
                     <select value={hall} onChange={(e) => setHall(e.target.value)}
-                      className="w-full border border-umd-gray rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red">
+                      className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red">
                       {HALLS.map((h) => <option key={h} value={h}>{h}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-umd-black mb-1">Meal</label>
                     <select value={meal} onChange={(e) => setMeal(e.target.value)}
-                      className="w-full border border-umd-gray rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red">
+                      className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red">
                       {MEALS.map((m) => <option key={m} value={m}>{m}</option>)}
                     </select>
                   </div>
@@ -271,7 +274,7 @@ export default function RecipePage() {
                 <div>
                   <label className="block text-sm font-medium text-umd-black mb-1">Date</label>
                   <input type="date" value={dt} onChange={(e) => setDt(e.target.value)}
-                    className="w-full border border-umd-gray rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red" />
+                    className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red" />
                 </div>
 
                 <button type="submit" disabled={loading}
@@ -305,10 +308,10 @@ export default function RecipePage() {
         </div>
 
         {!showForm && (
-          <form onSubmit={handleFollowUp} className="border-t border-umd-gray bg-white px-3 py-3 flex gap-2">
+          <form onSubmit={handleFollowUp} className="border-t border-umd-gray bg-white dark:bg-[#1c1c1c] px-3 py-3 flex gap-2">
             <input type="text" value={followUp} onChange={(e) => setFollowUp(e.target.value)}
               placeholder="Ask for modifications, different cuisine, dessert ideas..."
-              className="flex-1 min-w-0 border border-umd-gray rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
+              className="bg-white dark:bg-[#1c1c1c] text-umd-black flex-1 min-w-0 border border-umd-gray rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
               disabled={loading} />
             <button type="submit" disabled={loading || !followUp.trim()}
               className="bg-umd-red hover:bg-umd-red-dark text-white font-semibold px-4 py-2.5 rounded-xl transition-colors disabled:opacity-40 shrink-0">
