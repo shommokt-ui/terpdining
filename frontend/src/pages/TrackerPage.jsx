@@ -234,7 +234,7 @@ export default function TrackerPage() {
               const v = e.target.value;
               setDate(v > today ? today : v);
             }}
-            className="border border-umd-gray rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red"
+            className="bg-white dark:bg-[#1c1c1c] text-umd-black border border-umd-gray rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red"
           />
           <button
             onClick={goForward}
@@ -291,15 +291,15 @@ export default function TrackerPage() {
       )}
 
       {showCongrats && (
-        <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center justify-between animate-[slideIn_0.4s_ease-out]">
+        <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800/50 rounded-xl px-4 py-3 flex items-center justify-between animate-[slideIn_0.4s_ease-out]">
           <div className="flex items-center gap-3">
             <span className="text-2xl">🎉</span>
             <div>
-              <div className="text-sm font-bold text-green-800">You hit your goals today! Nice job.</div>
-              <div className="text-xs text-green-700">Keep up the grind.</div>
+              <div className="text-sm font-bold text-green-800 dark:text-green-300">You hit your goals today! Nice job.</div>
+              <div className="text-xs text-green-700 dark:text-green-400">Keep up the grind.</div>
             </div>
           </div>
-          <button onClick={() => setDismissed(true)} className="text-green-600 hover:text-green-800 p-1">
+          <button onClick={() => setDismissed(true)} className="text-green-600 dark:text-green-400 hover:text-green-800 dark:text-green-300 p-1">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -308,10 +308,23 @@ export default function TrackerPage() {
       )}
 
       {loading ? (
-        <div className="text-center py-16 text-umd-body">Loading...</div>
+        <div className="space-y-5">
+          <div className="skeleton h-64 w-full rounded-2xl" />
+          <div className="skeleton h-24 w-full rounded-2xl" />
+          <div className="skeleton h-24 w-full rounded-2xl" />
+        </div>
       ) : (
         <>
           <DailySummary totals={totals} goals={goals} />
+          {logs.length === 0 && (
+            <div className="text-center py-4">
+              <div className="text-3xl mb-1">🐢</div>
+              <p className="text-sm text-umd-body">
+                Nothing logged {isToday ? 'today' : 'this day'} yet. Search a food under any meal below to
+                start tracking.
+              </p>
+            </div>
+          )}
           {MEALS.map((meal) => (
             <MealSection
               key={meal}
@@ -327,7 +340,7 @@ export default function TrackerPage() {
       {showTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="fixed bottom-6 right-6 w-9 h-9 rounded-full bg-white/80 backdrop-blur border border-gray-200 shadow-sm flex items-center justify-center text-umd-gray-dark hover:text-umd-black hover:shadow-md transition-all z-40"
+          className="fixed bottom-6 right-6 w-9 h-9 rounded-full bg-white/80 backdrop-blur border border-gray-200 dark:border-white/10 shadow-sm flex items-center justify-center text-umd-gray-dark hover:text-umd-black hover:shadow-md transition-all z-40"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
@@ -406,7 +419,7 @@ function GoalEditor({ goals, onSave, onClear, onClose }) {
               value={enabled[key] ? values[key] : ''}
               onChange={(e) => setValues((prev) => ({ ...prev, [key]: e.target.value }))}
               placeholder={placeholder}
-              className="flex-1 border border-umd-gray rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red disabled:opacity-30 disabled:bg-gray-50"
+              className="bg-white dark:bg-[#1c1c1c] text-umd-black flex-1 border border-umd-gray rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red disabled:opacity-30 disabled:bg-gray-50"
             />
             <span className="text-[10px] text-umd-gray-dark w-6">{unit}</span>
           </div>
