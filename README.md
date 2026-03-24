@@ -176,9 +176,10 @@ npx cap sync
       one-time) accounts.
 - [ ] App icon + splash screens — `npx @capacitor/assets generate` from one
       source image generates every required size for both stores.
-- [ ] A hosted privacy policy page (both stores require this for an app
-      with user accounts). A static page via GitHub Pages from this repo
-      works fine.
+- [x] Privacy policy page — built into the app at
+      `frontend/src/pages/PrivacyPolicyPage.jsx`, served publicly at
+      `/privacy` on your deployed site (no login required). Use
+      `https://<your-site>/privacy` in both stores' listings.
 - [ ] Store listing: screenshots, description, category, age rating, and
       the App Privacy / Data Safety questionnaire — filled in directly in
       App Store Connect / Play Console.
