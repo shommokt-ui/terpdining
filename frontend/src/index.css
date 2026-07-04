@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+@theme {
+  --breakpoint-xs: 480px;
+  --color-umd-red: #e21833;
+  --color-umd-red-dark: #b5132a;
+  --color-umd-gold: #ffd200;
+  --color-umd-black: #000000;
+  --color-umd-white: #ffffff;
+  --color-umd-body: #454545;
+  --color-umd-gray-darker: #242424;
+  --color-umd-gray-dark: #757575;
+  --color-umd-gray: #e6e6e6;
+  --color-umd-gray-light: #f1f1f1;
+  --color-umd-gray-lightest: #fafafa;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: "Overpass", "Interstate", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: var(--color-umd-gray-lightest);
+  color: var(--color-umd-body);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--color-umd-black);
+}
+
+a, button {
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.umd-container {
+  max-width: 1400px;
+  margin-inline: auto;
+}
+
+.umd-hero-title {
+  font-family: "Barlow Condensed", "Overpass", sans-serif;
+  font-weight: 700;
+  font-style: italic;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+.umd-overline {
+  font-family: "Overpass", "Interstate", sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.umd-card {
+  background: var(--color-umd-white);
+  border: 1px solid var(--color-umd-gray);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.2s ease;
+}
+
+.umd-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}

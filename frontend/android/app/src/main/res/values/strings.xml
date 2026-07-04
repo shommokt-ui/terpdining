@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">TerpDining</string>
+    <string name="title_activity_main">TerpDining</string>
+    <string name="package_name">com.terpdining.app</string>
+    <string name="custom_url_scheme">com.terpdining.app</string>
+</resources>

@@ -1,0 +1,12 @@
+langchain[openai]
+bs4
+python-dotenv
+requests
+fastapi
+uvicorn[standard]
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+pydantic[email]
+apscheduler
+resend
