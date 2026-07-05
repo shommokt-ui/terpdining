@@ -6,6 +6,7 @@ import { apiPost } from '../api';
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -14,6 +15,10 @@ export default function RegisterPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
     setLoading(true);
     try {
       const data = await apiPost('/api/auth/register', { email, password });
@@ -59,9 +64,27 @@ export default function RegisterPage() {
               className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
             />
           </div>
+          <div>
+            <label className="block text-sm font-semibold text-umd-black mb-1">Confirm password</label>
+            <input
+              type="password"
+              required
+              minLength={6}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className={`bg-white dark:bg-[#1c1c1c] text-umd-black w-full border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent ${
+                confirmPassword && confirmPassword !== password
+                  ? 'border-red-500'
+                  : 'border-umd-gray'
+              }`}
+            />
+            {confirmPassword && confirmPassword !== password && (
+              <p className="mt-1 text-xs text-red-600 dark:text-red-400">Passwords do not match.</p>
+            )}
+          </div>
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !password || password !== confirmPassword}
             className="w-full bg-umd-red hover:bg-umd-red-dark text-white font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50"
           >
             {loading ? 'Creating account...' : 'Create Account'}
