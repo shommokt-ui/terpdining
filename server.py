@@ -97,9 +97,31 @@ def on_startup():
         except Exception:
             logging.getLogger(__name__).exception("Scheduled menu re-scrape failed")
 
+    def _scrape_if_stale() -> None:
+        """Backfill menus missing today's date.
+
+        On hosts that spin idle instances down (Render free tier) the
+        24h interval job rarely gets to fire, so every startup checks
+        whether today's menus exist and scrapes if not.
+        """
+        from datetime import date
+
+        conn = get_connection()
+        try:
+            row = conn.execute("SELECT MAX(date) AS latest FROM menu_entries").fetchone()
+            latest = row["latest"] if row else None
+        finally:
+            conn.close()
+        if latest is None or latest < date.today().isoformat():
+            logging.getLogger(__name__).info(
+                "Menu data stale (latest=%s) — scraping now", latest
+            )
+            _rescrape()
+
     if (os.getenv("ENABLE_SCRAPE_SCHEDULER") or "true").strip().lower() != "false":
         _scheduler.add_job(_rescrape, "interval", hours=24, id="rescrape", replace_existing=True)
         _scheduler.start()
+        _scheduler.add_job(_scrape_if_stale, id="scrape_if_stale")
 
 
 @app.on_event("shutdown")

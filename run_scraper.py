@@ -25,6 +25,10 @@ import logging
 import time
 from datetime import date, datetime, timedelta
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from src.scraping.scraper import scrape_to_db, scrape_week_json
 
 log = logging.getLogger(__name__)
