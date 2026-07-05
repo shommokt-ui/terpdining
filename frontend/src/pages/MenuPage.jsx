@@ -314,7 +314,7 @@ function SearchBar({ value, onChange }) {
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Search today's menu..."
+        placeholder="Search the menu..."
         className="w-full bg-white dark:bg-[#1c1c1c] text-umd-black border border-umd-gray rounded-lg pl-9 pr-9 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
       />
       {value && (

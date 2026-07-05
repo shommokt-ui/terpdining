@@ -15,5 +15,8 @@
       "backgroundColor": "#fafafaff",
       "showSpinner": false
     }
+  },
+  "server": {
+    "androidScheme": "http"
   }
 }
