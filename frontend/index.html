@@ -6,10 +6,68 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,700&family=Crimson+Text:wght@400;700&family=Overpass:wght@400;700;800&family=Roboto+Condensed:wght@400;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,700&family=Crimson+Text:wght@400;700&family=Overpass:wght@400;700;800&family=Roboto+Condensed:wght@400;700&family=Source+Sans+3:wght@400;600;700&display=swap"
+      onload="this.onload=null;this.rel='stylesheet'"
+    />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,700&family=Crimson+Text:wght@400;700&family=Overpass:wght@400;700;800&family=Roboto+Condensed:wght@400;700&family=Source+Sans+3:wght@400;600;700&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
     <title>TerpDining</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background-color: #fafafa;
+      }
+      #app-splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        background-color: #fafafa;
+        z-index: 2147483647;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      #app-splash .app-splash-mark {
+        font-size: 64px;
+        line-height: 1;
+      }
+      #app-splash .app-splash-name {
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        color: #242424;
+        font-size: 20px;
+      }
+      #app-splash .app-splash-spinner {
+        width: 28px;
+        height: 28px;
+        border: 3px solid rgba(226, 24, 51, 0.25);
+        border-top-color: #e21833;
+        border-radius: 50%;
+        animation: app-splash-spin 0.8s linear infinite;
+      }
+      @keyframes app-splash-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
   </head>
   <body>
+    <div id="app-splash">
+      <div class="app-splash-mark">🐢</div>
+      <div class="app-splash-name">TERPDINING</div>
+      <div class="app-splash-spinner"></div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
