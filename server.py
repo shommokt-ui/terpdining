@@ -53,10 +53,14 @@ _DEFAULT_ORIGINS = [
     "http://127.0.0.1:5174",
     "capacitor://localhost",
     "http://localhost",
+    "https://localhost",  # Capacitor Android WebView (default https scheme)
 ]
 
+# Env origins extend the defaults (the Capacitor/localhost origins must
+# always work for the mobile apps regardless of deployment config).
 _cors_env = (os.getenv("CORS_ALLOWED_ORIGINS") or "").strip()
-ALLOWED_ORIGINS = [o.strip() for o in _cors_env.split(",") if o.strip()] or _DEFAULT_ORIGINS
+_extra_origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
+ALLOWED_ORIGINS = _DEFAULT_ORIGINS + [o for o in _extra_origins if o not in _DEFAULT_ORIGINS]
 
 app = FastAPI(title="TerpDining API", version="1.0.0")
 
