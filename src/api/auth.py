@@ -93,12 +93,12 @@ def register(body: RegisterRequest, conn=Depends(get_db)):
 
     now = datetime.now(timezone.utc).isoformat()
     hashed = _hash_password(body.password)
-    cursor = conn.execute(
-        "INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)",
+    row = conn.execute(
+        "INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?) RETURNING id",
         (body.email, hashed, now),
-    )
+    ).fetchone()
     conn.commit()
-    user_id = cursor.lastrowid
+    user_id = row["id"]
 
     token = create_access_token({"sub": str(user_id)})
     return TokenResponse(

@@ -48,7 +48,8 @@ def _upsert_food_item(conn: sqlite3.Connection, name: str, label_url: str | None
         if row:
             return row["id"]
     conn.execute(
-        "INSERT OR IGNORE INTO food_items (name, label_url) VALUES (?, ?)",
+        "INSERT INTO food_items (name, label_url) VALUES (?, ?) "
+        "ON CONFLICT (label_url) DO NOTHING",
         (name, label_url),
     )
     row = conn.execute("SELECT id FROM food_items WHERE label_url = ?", (label_url,)).fetchone()
@@ -122,7 +123,8 @@ def _upsert_tags(conn: sqlite3.Connection, food_item_id: int, tags: list[str]) -
     conn.execute("DELETE FROM food_item_tags WHERE food_item_id = ?", (food_item_id,))
     for tag in tags:
         conn.execute(
-            "INSERT OR IGNORE INTO food_item_tags (food_item_id, tag) VALUES (?, ?)",
+            "INSERT INTO food_item_tags (food_item_id, tag) VALUES (?, ?) "
+            "ON CONFLICT (food_item_id, tag) DO NOTHING",
             (food_item_id, tag),
         )
 
@@ -177,6 +179,7 @@ def load_json_file(conn: sqlite3.Connection, path: Path) -> int:
                     """\
                     INSERT INTO menu_entries (hall_id, date, meal, station, food_item_id, scraped_at)
                     VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT (hall_id, date, meal, station, food_item_id) DO NOTHING
                     """,
                     (hall_id, dt, meal_name, station_name, food_item_id, now),
                 )

@@ -2,14 +2,12 @@ services:
   - type: web
     name: terpdining-api
     runtime: python
-    plan: starter
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
-    disk:
-      name: terpdining-data
-      mountPath: /data
-      sizeGB: 1
     envVars:
+      - key: DATABASE_URL
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: JWT_SECRET
@@ -22,8 +20,6 @@ services:
         sync: false
       - key: FRONTEND_BASE_URL
         sync: false
-      - key: DINING_DB_PATH
-        value: /data/umd_dining.db
       - key: ENABLE_SCRAPE_SCHEDULER
         value: "true"
       - key: LANGSMITH_TRACING

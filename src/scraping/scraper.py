@@ -188,6 +188,7 @@ def scrape_to_db(
                             """\
                             INSERT INTO menu_entries (hall_id, date, meal, station, food_item_id, scraped_at)
                             VALUES (?, ?, ?, ?, ?, ?)
+                            ON CONFLICT (hall_id, date, meal, station, food_item_id) DO NOTHING
                             """,
                             (hall_id, dt.isoformat(), meal_name, station_name, food_item_id, now),
                         )

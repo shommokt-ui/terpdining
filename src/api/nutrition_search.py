@@ -21,7 +21,7 @@ def search_nutrition(q: str = Query(..., min_length=1)):
                    fn.total_fat_g, fn.total_carbs_g, fn.sodium_mg, fn.allergens
             FROM food_items fi
             LEFT JOIN food_nutrition fn ON fn.food_item_id = fi.id
-            WHERE fi.name LIKE ?
+            WHERE LOWER(fi.name) LIKE LOWER(?)
             ORDER BY LENGTH(fi.name), fi.name
             LIMIT 20
             """,

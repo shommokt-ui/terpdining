@@ -19,3 +19,4 @@ frontend/dist/
 # SQLite WAL files
 *.db-shm
 *.db-wal
+.idea/

@@ -27,7 +27,7 @@ def _norm_name(s: str) -> str:
 @router.get("/favorites", response_model=list[FavoriteOut])
 def list_favorites(user=Depends(get_current_user), conn=Depends(get_db)):
     rows = conn.execute(
-        "SELECT food_name FROM user_favorite_foods WHERE user_id = ? ORDER BY food_name COLLATE NOCASE",
+        "SELECT food_name FROM user_favorite_foods WHERE user_id = ? ORDER BY LOWER(food_name)",
         (user["id"],),
     ).fetchall()
     return [FavoriteOut(name=r["food_name"]) for r in rows]
@@ -40,7 +40,8 @@ def add_favorite(body: FavoriteIn, user=Depends(get_current_user), conn=Depends(
         raise HTTPException(status_code=400, detail="Name required")
     now = datetime.now(timezone.utc).isoformat()
     conn.execute(
-        "INSERT OR REPLACE INTO user_favorite_foods (user_id, food_name, created_at) VALUES (?, ?, ?)",
+        "INSERT INTO user_favorite_foods (user_id, food_name, created_at) VALUES (?, ?, ?) "
+        "ON CONFLICT (user_id, food_name) DO UPDATE SET created_at = excluded.created_at",
         (user["id"], name, now),
     )
     conn.commit()

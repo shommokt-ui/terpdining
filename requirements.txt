@@ -10,3 +10,4 @@ python-multipart
 pydantic[email]
 apscheduler
 resend
+psycopg[binary]

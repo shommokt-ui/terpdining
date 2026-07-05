@@ -96,7 +96,7 @@ def _fetch_available_items(hall: str, meal: str, dt: str) -> tuple[str, str]:
             JOIN dining_halls dh ON dh.id = me.hall_id
             JOIN food_items fi ON fi.id = me.food_item_id
             LEFT JOIN food_nutrition fn ON fn.food_item_id = fi.id
-            WHERE dh.name LIKE ? AND LOWER(me.meal) = LOWER(?) AND me.date = ?
+            WHERE LOWER(dh.name) LIKE LOWER(?) AND LOWER(me.meal) = LOWER(?) AND me.date = ?
             ORDER BY me.station, fi.name
         """
 
@@ -104,19 +104,24 @@ def _fetch_available_items(hall: str, meal: str, dt: str) -> tuple[str, str]:
         used_date = dt
 
         if not rows:
-            nearest = conn.execute(
+            # Dates are ISO YYYY-MM-DD strings; find the closest one in Python
+            # (portable across SQLite and Postgres, unlike JULIANDAY).
+            candidates = conn.execute(
                 """\
                 SELECT DISTINCT me.date
                 FROM menu_entries me
                 JOIN dining_halls dh ON dh.id = me.hall_id
-                WHERE dh.name LIKE ? AND LOWER(me.meal) = LOWER(?)
-                ORDER BY ABS(JULIANDAY(me.date) - JULIANDAY(?))
-                LIMIT 1
+                WHERE LOWER(dh.name) LIKE LOWER(?) AND LOWER(me.meal) = LOWER(?)
                 """,
-                (f"%{hall}%", meal, dt),
-            ).fetchone()
-            if nearest:
-                used_date = nearest["date"]
+                (f"%{hall}%", meal),
+            ).fetchall()
+            dates = [c["date"] for c in candidates]
+            if dates:
+                try:
+                    target = date.fromisoformat(dt)
+                    used_date = min(dates, key=lambda d: abs(date.fromisoformat(d) - target))
+                except ValueError:
+                    used_date = max(dates)
                 rows = conn.execute(
                     _QUERY, (f"%{hall}%", meal, used_date)
                 ).fetchall()
@@ -225,12 +230,12 @@ def recipe(body: RecipeRequest, user=Depends(get_current_user), conn=Depends(get
         title = f"Recipe: {cuisine} ({hall}, {meal})"
         if len(title) > 60:
             title = title[:57] + "..."
-        cur = conn.execute(
-            "INSERT INTO recipe_sessions (user_id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        row = conn.execute(
+            "INSERT INTO recipe_sessions (user_id, title, created_at, updated_at) VALUES (?, ?, ?, ?) RETURNING id",
             (user["id"], title, now, now),
-        )
+        ).fetchone()
         conn.commit()
-        session_id = cur.lastrowid
+        session_id = row["id"]
 
         conn.execute(
             "INSERT INTO recipe_messages (session_id, role, content, created_at) VALUES (?, ?, ?, ?)",

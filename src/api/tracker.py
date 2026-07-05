@@ -42,7 +42,9 @@ class DailySummary(BaseModel):
 
 
 def _ensure_portion_label_column(conn):
-    """Migration — add portion_label if missing."""
+    """Migration — add portion_label if missing (older SQLite DBs only)."""
+    if getattr(conn, "is_postgres", False):
+        return
     cols = [row[1] for row in conn.execute("PRAGMA table_info(food_logs)").fetchall()]
     if "portion_label" not in cols:
         conn.execute("ALTER TABLE food_logs ADD COLUMN portion_label TEXT")
@@ -137,13 +139,13 @@ def log_food(body: LogFoodRequest, user=Depends(get_current_user), conn=Depends(
     log_date = body.logged_date or date.today().isoformat()
     now = datetime.now(timezone.utc).isoformat()
 
-    cursor = conn.execute(
+    row = conn.execute(
         "INSERT INTO food_logs (user_id, food_item_id, servings, portion_label, meal_type, logged_date, created_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id",
         (user["id"], body.food_item_id, body.servings, body.portion_label, body.meal_type, log_date, now),
-    )
+    ).fetchone()
     conn.commit()
-    return {"id": cursor.lastrowid, "food_name": food["name"]}
+    return {"id": row["id"], "food_name": food["name"]}
 
 
 @router.get("/logs")
