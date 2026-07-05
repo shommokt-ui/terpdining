@@ -26,6 +26,8 @@ SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 GMAIL_SENDER = (os.getenv("GMAIL_SENDER") or "").strip()
 GMAIL_APP_PASSWORD = (os.getenv("GMAIL_APP_PASSWORD") or "").strip()
+BREVO_API_KEY = (os.getenv("BREVO_API_KEY") or "").strip()
+BREVO_SENDER = (os.getenv("BREVO_SENDER") or GMAIL_SENDER or "").strip()
 
 
 def _reset_email_html(reset_link: str) -> str:
@@ -68,16 +70,36 @@ def _send_via_gmail(to_email: str, reset_link: str) -> None:
         smtp.send_message(msg)
 
 
+def _send_via_brevo(to_email: str, reset_link: str) -> None:
+    import requests
+
+    resp = requests.post(
+        "https://api.brevo.com/v3/smtp/email",
+        headers={"api-key": BREVO_API_KEY, "content-type": "application/json"},
+        json={
+            "sender": {"name": "TerpDining", "email": BREVO_SENDER},
+            "to": [{"email": to_email}],
+            "subject": "Reset your TerpDining password",
+            "htmlContent": _reset_email_html(reset_link),
+        },
+        timeout=20,
+    )
+    resp.raise_for_status()
+
+
 def _send_reset_email(to_email: str, reset_link: str) -> None:
     """Send the password-reset link.
 
     Prefers Resend when RESEND_API_KEY is set (verified-domain sending),
-    otherwise Gmail SMTP when GMAIL_SENDER/GMAIL_APP_PASSWORD are set.
+    then Brevo's HTTP API (works on hosts like Render that block outbound
+    SMTP), then Gmail SMTP for environments where port 587 is open.
     Falls back to a server log line so local dev needs no email account.
     """
     try:
         if RESEND_API_KEY:
             _send_via_resend(to_email, reset_link)
+        elif BREVO_API_KEY and BREVO_SENDER:
+            _send_via_brevo(to_email, reset_link)
         elif GMAIL_SENDER and GMAIL_APP_PASSWORD:
             _send_via_gmail(to_email, reset_link)
         else:
