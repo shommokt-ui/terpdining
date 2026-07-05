@@ -22,36 +22,70 @@ PASSWORD_MIN_LEN = 6
 FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:5173")
 RESEND_API_KEY = (os.getenv("RESEND_API_KEY") or "").strip()
 RESEND_FROM = os.getenv("RESEND_FROM", "TerpDining <onboarding@resend.dev>")
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+GMAIL_SENDER = (os.getenv("GMAIL_SENDER") or "").strip()
+GMAIL_APP_PASSWORD = (os.getenv("GMAIL_APP_PASSWORD") or "").strip()
 
 
-def _send_reset_email(to_email: str, reset_link: str) -> None:
-    """Send the password-reset link via Resend, if configured.
+def _reset_email_html(reset_link: str) -> str:
+    return (
+        f"<p>Click the link below to reset your TerpDining password:</p>"
+        f'<p><a href="{reset_link}">{reset_link}</a></p>'
+        f"<p>This link expires in {int(PASSWORD_RESET_TTL.total_seconds() // 60)} minutes.</p>"
+    )
 
-    Falls back to a server log line (as before) when RESEND_API_KEY is
-    absent, so local dev doesn't need a Resend account.
-    """
-    if not RESEND_API_KEY:
-        log.warning(
-            "Password reset requested for %s — RESEND_API_KEY not set, link: %s",
-            to_email,
-            reset_link,
-        )
-        return
 
+def _send_via_resend(to_email: str, reset_link: str) -> None:
     import resend
 
     resend.api_key = RESEND_API_KEY
+    resend.Emails.send({
+        "from": RESEND_FROM,
+        "to": [to_email],
+        "subject": "Reset your TerpDining password",
+        "html": _reset_email_html(reset_link),
+    })
+
+
+def _send_via_gmail(to_email: str, reset_link: str) -> None:
+    import smtplib
+    from email.message import EmailMessage
+
+    msg = EmailMessage()
+    msg["Subject"] = "Reset your TerpDining password"
+    msg["From"] = f"TerpDining <{GMAIL_SENDER}>"
+    msg["To"] = to_email
+    msg.set_content(
+        f"Reset your TerpDining password using this link (expires in "
+        f"{int(PASSWORD_RESET_TTL.total_seconds() // 60)} minutes):\n\n{reset_link}\n"
+    )
+    msg.add_alternative(_reset_email_html(reset_link), subtype="html")
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as smtp:
+        smtp.starttls()
+        smtp.login(GMAIL_SENDER, GMAIL_APP_PASSWORD)
+        smtp.send_message(msg)
+
+
+def _send_reset_email(to_email: str, reset_link: str) -> None:
+    """Send the password-reset link.
+
+    Prefers Resend when RESEND_API_KEY is set (verified-domain sending),
+    otherwise Gmail SMTP when GMAIL_SENDER/GMAIL_APP_PASSWORD are set.
+    Falls back to a server log line so local dev needs no email account.
+    """
     try:
-        resend.Emails.send({
-            "from": RESEND_FROM,
-            "to": [to_email],
-            "subject": "Reset your TerpDining password",
-            "html": (
-                f"<p>Click the link below to reset your TerpDining password:</p>"
-                f'<p><a href="{reset_link}">{reset_link}</a></p>'
-                f"<p>This link expires in {int(PASSWORD_RESET_TTL.total_seconds() // 60)} minutes.</p>"
-            ),
-        })
+        if RESEND_API_KEY:
+            _send_via_resend(to_email, reset_link)
+        elif GMAIL_SENDER and GMAIL_APP_PASSWORD:
+            _send_via_gmail(to_email, reset_link)
+        else:
+            log.warning(
+                "Password reset requested for %s — no email sender configured, link: %s",
+                to_email,
+                reset_link,
+            )
     except Exception:
         log.exception("Failed to send password reset email to %s", to_email)
 
