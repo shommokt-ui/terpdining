@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiGet, apiPost, apiPut, apiDelete } from '../api';
 import DailySummary from '../components/DailySummary';
 import MealSection from '../components/MealSection';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { useNavigationState } from '../context/NavigationStateContext';
 
 const MEALS = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
@@ -49,6 +51,8 @@ function goalsEmpty(g) {
 
 export default function TrackerPage() {
   const today = localDateStr();
+  const { user } = useAuth();
+  const toast = useToast();
   const { tracker, patchTracker } = useNavigationState();
   const date = tracker.date ?? today;
   const setDate = (next) => patchTracker({ date: next });
@@ -71,6 +75,7 @@ export default function TrackerPage() {
   const isToday = date === today;
 
   useEffect(() => {
+    if (!user) return;
     let cancelled = false;
     (async () => {
       try {
@@ -95,9 +100,13 @@ export default function TrackerPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [user]);
 
   function persistGoals(next) {
+    if (!user) {
+      toast('Sign in to save your goals');
+      return;
+    }
     const hasAny = next && Object.values(next).some((v) => v > 0);
     setGoals(hasAny ? next : null);
     saveGoalsLocal(hasAny ? next : null);
@@ -127,14 +136,19 @@ export default function TrackerPage() {
   }, [date]);
 
   useEffect(() => {
+    if (!user) { setLogs([]); setLoading(false); hasLoaded.current = true; return; }
     hasLoaded.current = false;
     fetchLogs();
     patchTracker({ dismissed: false });
     setCelebrate(false);
     prevGoalsHit.current = false;
-  }, [fetchLogs, patchTracker]);
+  }, [fetchLogs, patchTracker, user]);
 
   async function handleLog(item) {
+    if (!user) {
+      toast('Sign in to start tracking your meals');
+      return;
+    }
     if (!item.food_item_id) return;
     await apiPost('/api/tracker/logs', {
       food_item_id: item.food_item_id,
@@ -217,6 +231,15 @@ export default function TrackerPage() {
 
       {/* celebration overlay */}
       {celebrate && <Confetti />}
+
+      {!user && (
+        <div className="rounded-lg px-4 py-2.5 flex items-center gap-3 text-sm font-semibold bg-umd-gold/20 dark:bg-umd-gold/10 border border-umd-gold/50 text-umd-black">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 shrink-0">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Sign in to log meals and save your daily goals.
+        </div>
+      )}
 
       <div className="flex items-center justify-between">
         <h1 className="text-4xl umd-hero-title text-umd-black">Macro Tracker</h1>

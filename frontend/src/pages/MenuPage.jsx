@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { apiGet, apiPost, apiDelete } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useNavigationState } from '../context/NavigationStateContext';
@@ -46,6 +45,46 @@ function isServingNow(meal) {
   const now = new Date();
   const h = now.getHours() + now.getMinutes() / 60;
   return h >= range[0] && h < range[1];
+}
+
+function formatHour(h) {
+  const hour24 = Math.floor(h);
+  const minutes = Math.round((h - hour24) * 60);
+  const period = hour24 >= 12 ? 'PM' : 'AM';
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return minutes === 0 ? `${hour12} ${period}` : `${hour12}:${String(minutes).padStart(2, '0')} ${period}`;
+}
+
+// "7–11 AM" when both ends share a period, "9 AM – 2 PM" when they don't.
+function formatHourRange(start, end) {
+  const startPeriod = Math.floor(start) >= 12 ? 'PM' : 'AM';
+  const endPeriod = Math.floor(end) >= 12 ? 'PM' : 'AM';
+  const startLabel = formatHour(start);
+  const endLabel = formatHour(end);
+  if (startPeriod === endPeriod) {
+    return `${startLabel.replace(` ${startPeriod}`, '')}–${endLabel}`;
+  }
+  return `${startLabel} – ${endLabel}`;
+}
+
+function mealTimeLabel(meal) {
+  const range = MEAL_HOURS[meal];
+  return range ? formatHourRange(range[0], range[1]) : '';
+}
+
+// Derives a hall's overall open/close window from whichever meals it's serving that day.
+function hallHoursLabel(mealsForHall) {
+  const ranges = (mealsForHall || []).map((m) => MEAL_HOURS[m]).filter(Boolean);
+  if (ranges.length === 0) return null;
+  const start = Math.min(...ranges.map((r) => r[0]));
+  const end = Math.max(...ranges.map((r) => r[1]));
+  return formatHourRange(start, end);
+}
+
+function formatDisplayDate(dateStr, today) {
+  const d = new Date(`${dateStr}T12:00:00`);
+  const label = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  return dateStr === today ? `Today, ${label}` : label;
 }
 
 function isTooFarAhead(date, today, latestMenuDate) {
@@ -447,11 +486,14 @@ export default function MenuPage() {
 
   const toast = useToast();
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState(() => new Set());
   const [expandSignal, setExpandSignal] = useState({ version: 0, open: true });
+
+  useEffect(() => {
+    patchMenu({ favoritesCount: favorites.size });
+  }, [favorites, patchMenu]);
 
   const refreshFavorites = useCallback(async () => {
     if (!user) return;
@@ -489,12 +531,16 @@ export default function MenuPage() {
   }, [user, refreshFavorites]);
 
   async function toggleFav(name) {
+    const had = favorites.has(name);
     if (!user) {
-      toast('Sign in to save favorites');
-      navigate('/login');
+      setFavorites((prev) => {
+        const next = new Set(prev);
+        if (had) next.delete(name); else next.add(name);
+        return next;
+      });
+      if (!had) toast("Favorites won't be saved unless you sign in");
       return;
     }
-    const had = favorites.has(name);
     try {
       if (had) await apiDelete(`/api/favorites/${encodeURIComponent(name)}`);
       else await apiPost('/api/favorites', { name });
@@ -505,6 +551,14 @@ export default function MenuPage() {
   }
 
   async function removeFav(name) {
+    if (!user) {
+      setFavorites((prev) => {
+        const next = new Set(prev);
+        next.delete(name);
+        return next;
+      });
+      return;
+    }
     try {
       await apiDelete(`/api/favorites/${encodeURIComponent(name)}`);
       await refreshFavorites();
@@ -647,19 +701,22 @@ export default function MenuPage() {
       ) : !activeHall ? (
         <div className="flex flex-col items-center py-16">
           <div className="text-5xl mb-4">🐢</div>
-          <h1 className="text-4xl umd-hero-title text-umd-black mb-2">Today's Menu</h1>
+          <h1 className="text-4xl umd-hero-title text-umd-black mb-2">{formatDisplayDate(date, today)}</h1>
           <p className="text-umd-body text-sm mb-8">Pick a dining hall to see what's cooking</p>
           <div className="flex flex-wrap gap-3 justify-center">
             {halls.map((h) => {
               const closed = !data.halls[h];
+              const hours = !closed ? hallHoursLabel(Object.keys(data.halls[h])) : null;
               return (
                 <button key={h} onClick={() => setActiveHall(h)}
                   className={`px-6 py-4 rounded-xl text-base font-bold umd-card transition-colors ${
                     closed ? 'opacity-60 hover:border-umd-gray-dark' : 'hover:border-umd-red hover:text-umd-red'
                   }`}>
                   {h}
-                  {closed && (
+                  {closed ? (
                     <span className="block text-[11px] font-medium text-umd-gray-dark mt-0.5">No menu today</span>
+                  ) : hours && (
+                    <span className="block text-[11px] font-medium text-umd-gray-dark mt-0.5">{hours}</span>
                   )}
                 </button>
               );
@@ -669,7 +726,7 @@ export default function MenuPage() {
       ) : (
         <>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <h1 className="text-2xl sm:text-4xl umd-hero-title text-umd-black">Today's Menu</h1>
+            <h1 className="text-2xl sm:text-4xl umd-hero-title text-umd-black">{formatDisplayDate(date, today)}</h1>
             <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 onClick={() => {
@@ -690,40 +747,32 @@ export default function MenuPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
               </button>
               {date !== today && (
-                <button onClick={() => setDate(today)} className="text-xs text-umd-red font-semibold hover:underline ml-1">Today</button>
+                <button onClick={() => setDate(today)} className="text-xs text-umd-red font-semibold hover:underline ml-1">Return to today</button>
               )}
-
-              {/* favorites */}
-              <button
-                onClick={() => setShowFavManager((o) => !o)}
-                className={`p-1.5 sm:p-2 rounded-lg border transition-colors ${showFavManager ? 'bg-red-500 text-white border-red-500' : 'border-umd-gray text-umd-gray-dark hover:border-red-400 hover:text-red-500'}`}
-                title="My favorites"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill={favorites.size > 0 ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                </svg>
-              </button>
-
-              {/* legend */}
-              <button
-                onClick={() => setLegendOpen(true)}
-                className="p-1.5 sm:p-2 rounded-lg border border-umd-gray text-umd-gray-dark hover:border-umd-red hover:text-umd-red transition-colors"
-                title="Icon legend"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </button>
             </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {halls.map((h) => (
-              <button key={h} onClick={() => setActiveHall(h)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  activeHall === h ? 'bg-umd-red text-white' : 'bg-white dark:bg-[#1c1c1c] text-umd-black border border-umd-gray hover:border-umd-red hover:text-umd-red'
-                }`}>{h}</button>
-            ))}
+            {halls.map((h) => {
+              const hOpen = data.halls[h];
+              const hHours = hOpen ? hallHoursLabel(Object.keys(data.halls[h])) : null;
+              const active = activeHall === h;
+              return (
+                <button key={h} onClick={() => setActiveHall(h)}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold text-left transition-colors ${
+                    active ? 'bg-umd-red text-white' : 'bg-white dark:bg-[#1c1c1c] text-umd-black border border-umd-gray hover:border-umd-red hover:text-umd-red'
+                  }`}>
+                  <span className="block">{h}</span>
+                  {hOpen ? (
+                    hHours && (
+                      <span className={`block text-[10px] font-medium mt-0.5 ${active ? 'text-white/80' : 'text-umd-gray-dark'}`}>{hHours}</span>
+                    )
+                  ) : (
+                    <span className={`block text-[10px] font-medium mt-0.5 ${active ? 'text-white/80' : 'text-umd-gray-dark'}`}>No menu today</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           {!hallHasData ? (
@@ -760,11 +809,12 @@ export default function MenuPage() {
                         return (
                           <button key={m} onClick={() => setActiveMeal(m)}
                             className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors inline-flex items-center gap-1.5 ${
-                              activeMeal === m ? 'bg-umd-gold text-umd-black' : 'bg-umd-gray-light text-umd-body hover:bg-umd-gray'
+                              activeMeal === m ? 'bg-umd-red text-white' : 'bg-umd-gray-light text-umd-body hover:bg-umd-gray'
                             }`}
                             title={serving ? 'Serving now' : undefined}>
                             {serving && <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />}
                             {m}
+                            <span className="font-normal opacity-70">{mealTimeLabel(m)}</span>
                           </button>
                         );
                       })}

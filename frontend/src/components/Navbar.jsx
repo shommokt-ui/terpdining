@@ -1,7 +1,7 @@
-import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useNavigationState } from '../context/NavigationStateContext';
 import Logo from './Logo';
 import ThemeToggle from './ThemeToggle';
 
@@ -9,15 +9,11 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const { menu, patchMenu } = useNavigationState();
 
   const isActive = (path) => location.pathname === path;
   const hideAuthLinks = location.pathname === '/register';
-
-  const linkClass = (path) =>
-    `px-3 py-2 rounded-lg text-sm font-bold uppercase tracking-wide transition-colors whitespace-nowrap ${
-      isActive(path) ? 'bg-white text-umd-red' : 'text-white/90 hover:bg-white/10'
-    }`;
+  const onMenuPage = location.pathname === '/menu';
 
   return (
     <>
@@ -30,24 +26,33 @@ export default function Navbar() {
           </Link>
 
           <div className="flex items-center gap-1">
-            <ThemeToggle theme={theme} onToggle={toggleTheme} variant="onRed" />
+            {onMenuPage && (
+              <>
+                {/* favorites */}
+                <button
+                  onClick={() => patchMenu({ showFavManager: !menu.showFavManager })}
+                  className={`p-2 rounded-lg transition-colors ${menu.showFavManager ? 'bg-white text-umd-red' : 'text-white hover:bg-white/10'}`}
+                  title="My favorites"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill={menu.favoritesCount > 0 ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                  </svg>
+                </button>
 
-            {/* hamburger */}
-            <button
-              className="md:hidden p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
-              onClick={() => setMobileOpen((o) => !o)}
-              aria-label="Toggle menu"
-            >
-              {mobileOpen ? (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              )}
-            </button>
+                {/* legend */}
+                <button
+                  onClick={() => patchMenu({ legendOpen: true })}
+                  className="p-2 rounded-lg text-white hover:bg-white/10 transition-colors"
+                  title="Icon legend"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
+              </>
+            )}
+
+            <ThemeToggle theme={theme} onToggle={toggleTheme} variant="onRed" />
           </div>
         </div>
       </div>
@@ -91,36 +96,6 @@ export default function Navbar() {
             )}
           </div>
         </nav>
-      )}
-
-      {/* mobile menu */}
-      {mobileOpen && !(hideAuthLinks && !user) && (
-        <div className="md:hidden bg-umd-red-dark border-t border-white/10 px-4 py-3 flex flex-col gap-1 z-50 relative">
-          {user ? (
-            <>
-              <Link to="/menu" onClick={() => setMobileOpen(false)} className={linkClass('/menu')}>Menu</Link>
-              <Link to="/recipe" onClick={() => setMobileOpen(false)} className={linkClass('/recipe')}>Recipe Creator</Link>
-              <Link to="/tracker" onClick={() => setMobileOpen(false)} className={linkClass('/tracker')}>Macro Tracker</Link>
-              <Link to="/settings" onClick={() => setMobileOpen(false)} className={linkClass('/settings')}>Settings</Link>
-              <div className="mt-2 pt-2 border-t border-white/20 flex items-center justify-between">
-                <span className="text-white/80 text-sm">{user.email.split('@')[0]}</span>
-                <button onClick={() => { logout(); setMobileOpen(false); }} className="text-white/70 hover:text-white text-sm underline">
-                  Logout
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <Link to="/menu" onClick={() => setMobileOpen(false)} className={linkClass('/menu')}>Menu</Link>
-              <Link to="/recipe" onClick={() => setMobileOpen(false)} className={linkClass('/recipe')}>Recipe Creator</Link>
-              <Link to="/tracker" onClick={() => setMobileOpen(false)} className={linkClass('/tracker')}>Macro Tracker</Link>
-              <div className="mt-2 pt-2 border-t border-white/20 flex items-center gap-3">
-                <Link to="/login" onClick={() => setMobileOpen(false)} className={linkClass('/login')}>Log In</Link>
-                <Link to="/register" onClick={() => setMobileOpen(false)} className={linkClass('/register')}>Sign Up</Link>
-              </div>
-            </>
-          )}
-        </div>
       )}
     </>
   );

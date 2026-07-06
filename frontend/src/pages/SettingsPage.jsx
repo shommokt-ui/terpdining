@@ -77,16 +77,28 @@ export default function SettingsPage() {
     <div className="umd-container max-w-2xl px-4 py-8 space-y-6">
       <h1 className="text-3xl umd-hero-title text-umd-black">Profile & Settings</h1>
 
-      {/* profile card */}
-      <div className="umd-card rounded-2xl p-6 flex items-center gap-4">
-        <div className="w-14 h-14 rounded-full bg-umd-red text-white flex items-center justify-center text-xl font-extrabold uppercase shrink-0">
-          {user?.email?.[0] || '?'}
+      {user ? (
+        <div className="umd-card rounded-2xl p-6 flex items-center gap-4">
+          <div className="w-14 h-14 rounded-full bg-umd-red text-white flex items-center justify-center text-xl font-extrabold uppercase shrink-0">
+            {user.email[0]}
+          </div>
+          <div className="min-w-0">
+            <div className="text-lg font-bold text-umd-black truncate">{user.email.split('@')[0]}</div>
+            <div className="text-sm text-umd-body truncate">{user.email}</div>
+          </div>
         </div>
-        <div className="min-w-0">
-          <div className="text-lg font-bold text-umd-black truncate">{user?.email?.split('@')[0]}</div>
-          <div className="text-sm text-umd-body truncate">{user?.email}</div>
+      ) : (
+        <div className="umd-card rounded-2xl p-6 flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-lg font-bold text-umd-black">You're browsing as a guest</h2>
+            <p className="text-xs text-umd-body">Sign in to save favorites, track macros, and use recipes.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link to="/login" className="border border-umd-gray text-umd-black hover:border-umd-red hover:text-umd-red font-semibold px-4 py-2 rounded-lg text-sm transition-colors">Log In</Link>
+            <Link to="/register" className="bg-umd-red hover:bg-umd-red-dark text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors">Sign Up</Link>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* appearance */}
       <div className="umd-card rounded-2xl p-6 flex items-center justify-between">
@@ -102,85 +114,89 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      <div className="umd-card rounded-2xl p-6 space-y-4">
-        <div>
-          <h2 className="text-lg font-bold text-umd-black">Change password</h2>
-          <p className="text-xs text-umd-body">
-            You'll stay signed in on this device after updating.
-          </p>
+      {user && (
+        <div className="umd-card rounded-2xl p-6 space-y-4">
+          <div>
+            <h2 className="text-lg font-bold text-umd-black">Change password</h2>
+            <p className="text-xs text-umd-body">
+              You'll stay signed in on this device after updating.
+            </p>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm rounded-lg px-4 py-3">{error}</div>
+          )}
+          {success && (
+            <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800/50 text-green-800 dark:text-green-300 text-sm rounded-lg px-4 py-3">
+              {success}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-umd-black mb-1">
+                Current password
+              </label>
+              <input
+                type="password"
+                required
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-umd-black mb-1">New password</label>
+              <input
+                type="password"
+                required
+                minLength={6}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-umd-black mb-1">
+                Confirm new password
+              </label>
+              <input
+                type="password"
+                required
+                minLength={6}
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-umd-red hover:bg-umd-red-dark text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Saving...' : 'Update password'}
+            </button>
+          </form>
         </div>
+      )}
 
-        {error && (
-          <div className="bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm rounded-lg px-4 py-3">{error}</div>
-        )}
-        {success && (
-          <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800/50 text-green-800 dark:text-green-300 text-sm rounded-lg px-4 py-3">
-            {success}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+      {user && (
+        <div className="umd-card rounded-2xl p-6 flex items-center justify-between">
           <div>
-            <label className="block text-sm font-semibold text-umd-black mb-1">
-              Current password
-            </label>
-            <input
-              type="password"
-              required
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-umd-black mb-1">New password</label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-umd-black mb-1">
-              Confirm new password
-            </label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
-            />
+            <h2 className="text-lg font-bold text-umd-black">Sign out</h2>
+            <p className="text-xs text-umd-body">End this session on this device.</p>
           </div>
           <button
-            type="submit"
-            disabled={loading}
-            className="bg-umd-red hover:bg-umd-red-dark text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
+            onClick={() => {
+              logout();
+              navigate('/login');
+            }}
+            className="border border-umd-gray text-umd-black hover:border-umd-red hover:text-umd-red font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
           >
-            {loading ? 'Saving...' : 'Update password'}
+            Log out
           </button>
-        </form>
-      </div>
-
-      <div className="umd-card rounded-2xl p-6 flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-bold text-umd-black">Sign out</h2>
-          <p className="text-xs text-umd-body">End this session on this device.</p>
         </div>
-        <button
-          onClick={() => {
-            logout();
-            navigate('/login');
-          }}
-          className="border border-umd-gray text-umd-black hover:border-umd-red hover:text-umd-red font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
-        >
-          Log out
-        </button>
-      </div>
+      )}
 
       {/* about & legal */}
       <div className="umd-card rounded-2xl p-6 space-y-3">
@@ -192,7 +208,7 @@ export default function SettingsPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
           </Link>
-          <a href="mailto:shommokt@gmail.com?subject=TerpDining%20help" className="flex items-center justify-between py-2.5 text-umd-body hover:text-umd-red">
+          <a href="mailto:terpdining@gmail.com?subject=TerpDining%20help" className="flex items-center justify-between py-2.5 text-umd-body hover:text-umd-red">
             Help
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -205,60 +221,62 @@ export default function SettingsPage() {
       </div>
 
       {/* danger zone */}
-      <div className="umd-card rounded-2xl p-6 space-y-3 border-red-200 dark:border-red-900/50">
-        <div>
-          <h2 className="text-lg font-bold text-red-600 dark:text-red-400">Delete account</h2>
-          <p className="text-xs text-umd-body">
-            Permanently deletes your account, favorites, tracker logs, and recipe sessions. This
-            cannot be undone.
-          </p>
-        </div>
+      {user && (
+        <div className="umd-card rounded-2xl p-6 space-y-3 border-red-200 dark:border-red-900/50">
+          <div>
+            <h2 className="text-lg font-bold text-red-600 dark:text-red-400">Delete account</h2>
+            <p className="text-xs text-umd-body">
+              Permanently deletes your account, favorites, tracker logs, and recipe sessions. This
+              cannot be undone.
+            </p>
+          </div>
 
-        {!showDeleteConfirm ? (
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
-          >
-            Delete my account
-          </button>
-        ) : (
-          <form onSubmit={handleDeleteAccount} className="space-y-3">
-            {deleteError && (
-              <div className="bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm rounded-lg px-4 py-3">
-                {deleteError}
+          {!showDeleteConfirm ? (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+            >
+              Delete my account
+            </button>
+          ) : (
+            <form onSubmit={handleDeleteAccount} className="space-y-3">
+              {deleteError && (
+                <div className="bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm rounded-lg px-4 py-3">
+                  {deleteError}
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-semibold text-umd-black mb-1">
+                  Enter your password to confirm
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                />
               </div>
-            )}
-            <div>
-              <label className="block text-sm font-semibold text-umd-black mb-1">
-                Enter your password to confirm
-              </label>
-              <input
-                type="password"
-                required
-                value={deletePassword}
-                onChange={(e) => setDeletePassword(e.target.value)}
-                className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-              />
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={deleteLoading}
-                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
-              >
-                {deleteLoading ? 'Deleting...' : 'Permanently delete'}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setShowDeleteConfirm(false); setDeletePassword(''); setDeleteError(''); }}
-                className="border border-umd-gray text-umd-black hover:border-umd-gray-dark font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={deleteLoading}
+                  className="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
+                >
+                  {deleteLoading ? 'Deleting...' : 'Permanently delete'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowDeleteConfirm(false); setDeletePassword(''); setDeleteError(''); }}
+                  className="border border-umd-gray text-umd-black hover:border-umd-gray-dark font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
     </div>
   );
 }

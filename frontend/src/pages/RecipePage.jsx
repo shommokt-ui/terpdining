@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { apiPost, apiGet, apiDelete } from '../api';
 import ChatMessage from '../components/ChatMessage';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { useNavigationState } from '../context/NavigationStateContext';
 
 const HALLS = ['South Campus', 'Yahentamitsi Dining Hall', '251 North'];
@@ -13,6 +15,8 @@ function todayStr() {
 }
 
 export default function RecipePage() {
+  const { user } = useAuth();
+  const toast = useToast();
   const { recipe, patchRecipe } = useNavigationState();
   const [sessions, setSessions] = useState([]);
   const [activeSession, setActiveSession] = useState(() => recipe.activeSession);
@@ -61,11 +65,12 @@ export default function RecipePage() {
   }, [messages]);
 
   const fetchSessions = useCallback(async () => {
+    if (!user) return;
     try {
       const data = await apiGet('/api/recipe/sessions');
       setSessions(data);
     } catch { /* ignore */ }
-  }, []);
+  }, [user]);
 
   useEffect(() => { fetchSessions(); }, [fetchSessions]);
 
@@ -109,6 +114,10 @@ export default function RecipePage() {
   async function handleCreate(e) {
     e.preventDefault();
     if (loading) return;
+    if (!user) {
+      toast('Sign in to create recipes');
+      return;
+    }
 
     const userSummary = `Craving: ${cuisine || 'anything'} | Goals: ${goals.join(', ') || 'none'} | ${hall}, ${meal}`;
     setMessages([{ role: 'user', content: userSummary }]);
@@ -139,6 +148,10 @@ export default function RecipePage() {
     e.preventDefault();
     const text = followUp.trim();
     if (!text || loading || !activeSession) return;
+    if (!user) {
+      toast('Sign in to create recipes');
+      return;
+    }
 
     setMessages((prev) => [...prev, { role: 'user', content: text }]);
     setFollowUp('');
@@ -172,17 +185,11 @@ export default function RecipePage() {
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         ${sidebarOpen ? 'md:w-64' : 'md:w-0'}
         fixed md:relative z-30 md:z-auto
-        h-[calc(100vh-5.5rem)] w-72 md:w-64
+        h-[calc(100vh-5.5rem)] w-72
         transition-all duration-200
         bg-white dark:bg-[#1c1c1c] border-r border-umd-gray
         flex flex-col overflow-hidden flex-shrink-0
       `}>
-        <div className="p-3 border-b border-umd-gray">
-          <button onClick={handleNewRecipe}
-            className="w-full bg-umd-red hover:bg-umd-red-dark text-white text-sm font-semibold py-2 rounded-lg transition-colors">
-            + New Recipe
-          </button>
-        </div>
         <div className="flex-1 overflow-y-auto">
           {sessions.map((s) => (
             <div key={s.id}
@@ -211,14 +218,18 @@ export default function RecipePage() {
       <div className="flex-1 flex flex-col min-w-0">
         <div className="px-3 py-2 border-b border-umd-gray bg-white dark:bg-[#1c1c1c] flex items-center gap-2">
           <button onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-1.5 hover:bg-umd-gray-light rounded-lg transition-colors text-umd-gray-dark">
+            className="px-2 py-1.5 flex items-center gap-1.5 hover:bg-umd-gray-light rounded-lg transition-colors text-umd-gray-dark text-xs font-semibold"
+            title="Recipe history">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
+            History
           </button>
-          <span className="text-sm text-umd-body">
-            {activeSession ? sessions.find((s) => s.id === activeSession)?.title || 'Recipe' : 'New Recipe'}
-          </span>
+          {(activeSession || messages.length > 0) && (
+            <span className="text-sm text-umd-body">
+              {activeSession ? sessions.find((s) => s.id === activeSession)?.title || 'Recipe' : 'New Recipe'}
+            </span>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-6">
@@ -231,6 +242,15 @@ export default function RecipePage() {
                   Tell me what you're craving and I'll create recipes from today's dining hall ingredients.
                 </p>
               </div>
+
+              {!user && (
+                <div className="rounded-lg px-4 py-2.5 mb-4 flex items-center gap-3 text-sm font-semibold bg-umd-gold/20 dark:bg-umd-gold/10 border border-umd-gold/50 text-umd-black">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 shrink-0">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Sign in to create recipes and save your sessions.
+                </div>
+              )}
 
               <form onSubmit={handleCreate} className="umd-card rounded-xl p-5 space-y-4">
                 <div>
@@ -279,7 +299,7 @@ export default function RecipePage() {
 
                 <button type="submit" disabled={loading}
                   className="w-full bg-umd-red hover:bg-umd-red-dark text-white font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50">
-                  {loading ? 'Creating recipes...' : 'Create Recipes'}
+                  {loading ? 'Creating recipe...' : 'Create Recipe'}
                 </button>
               </form>
             </div>

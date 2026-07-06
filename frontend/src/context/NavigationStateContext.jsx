@@ -14,6 +14,7 @@ const defaultMenu = {
   legendOpen: false,
   showFavManager: false,
   searchQuery: '',
+  favoritesCount: 0,
 };
 
 const defaultTracker = {
@@ -32,7 +33,7 @@ const defaultRecipe = {
   hall: 'South Campus',
   meal: 'Lunch',
   dt: todayStr(),
-  sidebarOpen: typeof window !== 'undefined' ? window.innerWidth >= 768 : true,
+  sidebarOpen: false,
 };
 
 const NavigationStateContext = createContext(null);

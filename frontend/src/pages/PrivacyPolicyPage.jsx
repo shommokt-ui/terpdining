@@ -115,8 +115,8 @@ export default function PrivacyPolicyPage() {
             </div>
             <p className="text-sm text-umd-body">
               Questions about this policy or a data deletion request? Contact{' '}
-              <a href="mailto:shommokt@gmail.com" className="text-umd-red font-semibold hover:underline">
-                shommokt@gmail.com
+              <a href="mailto:terpdining@gmail.com" className="text-umd-red font-semibold hover:underline">
+                terpdining@gmail.com
               </a>
               .
             </p>

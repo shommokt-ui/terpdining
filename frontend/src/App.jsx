@@ -17,13 +17,6 @@ import TrackerPage from './pages/TrackerPage';
 import SettingsPage from './pages/SettingsPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 
-function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth();
-  if (loading) return <div className="p-8 text-center text-umd-body">Loading...</div>;
-  if (!user) return <Navigate to="/login" replace />;
-  return children;
-}
-
 function AppRoutes() {
   const { user, loading } = useAuth();
   const location = useLocation();
@@ -42,9 +35,9 @@ function AppRoutes() {
         <Route path="/forgot-password" element={user ? <Navigate to="/menu" /> : <ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/menu" element={<MenuPage />} />
-        <Route path="/recipe" element={<ProtectedRoute><RecipePage /></ProtectedRoute>} />
-        <Route path="/tracker" element={<ProtectedRoute><TrackerPage /></ProtectedRoute>} />
-        <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+        <Route path="/recipe" element={<RecipePage />} />
+        <Route path="/tracker" element={<TrackerPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
         <Route path="/privacy" element={<PrivacyPolicyPage />} />
         <Route path="*" element={<Navigate to="/menu" replace />} />
       </Routes>

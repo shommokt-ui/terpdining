@@ -91,7 +91,7 @@ export default function LoginPage() {
             <Logo className="w-10 h-10" />
             TerpDining
           </div>
-          <h2 className="text-4xl umd-hero-title leading-tight mb-4">
+          <h2 className="text-4xl umd-hero-title leading-tight mb-4 text-white">
             Know what's <span className="text-umd-gold">good</span> before you go.
           </h2>
           <p className="text-white/85 text-sm leading-relaxed">
@@ -111,8 +111,8 @@ export default function LoginPage() {
 
           <div className="flex items-baseline justify-between mb-6">
             <h1 className="text-3xl umd-hero-title">Sign in</h1>
-            <Link to="/register" className="text-xs text-umd-body hover:text-umd-red hover:underline">
-              New user? <span className="font-semibold text-umd-red">Create an account</span>
+            <Link to="/register" className="text-xs text-umd-body">
+              New user? <span className="font-semibold text-umd-red hover:underline">Create an account</span>
             </Link>
           </div>
 
