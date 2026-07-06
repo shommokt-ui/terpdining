@@ -22,8 +22,8 @@ export default function Navbar() {
   return (
     <>
       {/* top bar */}
-      <div className="bg-umd-red h-11 flex items-center px-4 z-50 relative">
-        <div className="umd-container w-full flex items-center justify-between">
+      <div className="bg-umd-red px-4 z-50 relative pt-[env(safe-area-inset-top)]">
+        <div className="umd-container w-full h-11 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 text-white font-extrabold text-lg uppercase tracking-wide shrink-0">
             <Logo className="w-7 h-7" />
             TerpDining
@@ -77,10 +77,17 @@ export default function Navbar() {
                 </div>
               </>
             ) : (
-              <div className="flex items-center gap-2 ml-auto">
-                <Link to="/login" className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${isActive('/login') ? 'bg-umd-red text-white' : 'text-umd-body hover:bg-umd-gray-light'}`}>Log In</Link>
-                <Link to="/register" className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${isActive('/register') ? 'bg-umd-red text-white' : 'text-umd-body hover:bg-umd-gray-light'}`}>Sign Up</Link>
-              </div>
+              <>
+                <div className="flex items-center gap-1">
+                  <Link to="/menu" className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${isActive('/menu') ? 'bg-umd-red text-white' : 'text-umd-body hover:bg-umd-gray-light'}`}>Menu</Link>
+                  <Link to="/recipe" className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${isActive('/recipe') ? 'bg-umd-red text-white' : 'text-umd-body hover:bg-umd-gray-light'}`}>Recipes</Link>
+                  <Link to="/tracker" className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${isActive('/tracker') ? 'bg-umd-red text-white' : 'text-umd-body hover:bg-umd-gray-light'}`}>Tracker</Link>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Link to="/login" className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${isActive('/login') ? 'bg-umd-red text-white' : 'text-umd-body hover:bg-umd-gray-light'}`}>Log In</Link>
+                  <Link to="/register" className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${isActive('/register') ? 'bg-umd-red text-white' : 'text-umd-body hover:bg-umd-gray-light'}`}>Sign Up</Link>
+                </div>
+              </>
             )}
           </div>
         </nav>
@@ -104,8 +111,13 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <Link to="/login" onClick={() => setMobileOpen(false)} className={linkClass('/login')}>Log In</Link>
-              <Link to="/register" onClick={() => setMobileOpen(false)} className={linkClass('/register')}>Sign Up</Link>
+              <Link to="/menu" onClick={() => setMobileOpen(false)} className={linkClass('/menu')}>Menu</Link>
+              <Link to="/recipe" onClick={() => setMobileOpen(false)} className={linkClass('/recipe')}>Recipe Creator</Link>
+              <Link to="/tracker" onClick={() => setMobileOpen(false)} className={linkClass('/tracker')}>Macro Tracker</Link>
+              <div className="mt-2 pt-2 border-t border-white/20 flex items-center gap-3">
+                <Link to="/login" onClick={() => setMobileOpen(false)} className={linkClass('/login')}>Log In</Link>
+                <Link to="/register" onClick={() => setMobileOpen(false)} className={linkClass('/register')}>Sign Up</Link>
+              </div>
             </>
           )}
         </div>

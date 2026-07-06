@@ -113,7 +113,7 @@ export default function FoodSearch({ mealType, onLog }) {
   }
 
   const effectiveServings = portion ? portion.multiplier * qty : qty;
-  const unitLabel = portion ? portion.label.toLowerCase() : 'piece';
+  const unitLabel = portion ? portion.label.toLowerCase() : 'serving';
   const portionLabel = `${qty} ${unitLabel}${qty !== 1 ? 's' : ''}`;
 
   function handleLog() {
@@ -198,6 +198,11 @@ export default function FoodSearch({ mealType, onLog }) {
             <div className="text-xs font-semibold text-umd-black mb-2">
               How many {unitLabel}s?
             </div>
+            {selected.serving_size && (
+              <div className="text-[11px] text-umd-body/70 mb-2">
+                Each {unitLabel} is estimated as {portion ? `${portion.multiplier}×` : '1×'} the dining hall label serving ({selected.serving_size})
+              </div>
+            )}
             <div className="flex flex-wrap gap-1.5">
               {QTY_OPTIONS.map((n) => (
                 <button

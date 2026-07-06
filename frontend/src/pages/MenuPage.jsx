@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiGet, apiPost, apiDelete } from '../api';
+import { useAuth } from '../context/AuthContext';
 import { useNavigationState } from '../context/NavigationStateContext';
 import { useToast } from '../context/ToastContext';
 import Drawer from '../components/Drawer';
@@ -444,19 +446,23 @@ export default function MenuPage() {
   const setShowFavManager = (v) => patchMenu({ showFavManager: typeof v === 'function' ? v(menu.showFavManager) : v });
 
   const toast = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState(() => new Set());
   const [expandSignal, setExpandSignal] = useState({ version: 0, open: true });
 
   const refreshFavorites = useCallback(async () => {
+    if (!user) return;
     try {
       const rows = await apiGet('/api/favorites');
       setFavorites(new Set(rows.map((r) => r.name)));
     } catch { /* ignore */ }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
+    if (!user) { setFavorites(new Set()); return; }
     (async () => {
       try {
         const rows = await apiGet('/api/favorites');
@@ -480,9 +486,14 @@ export default function MenuPage() {
     const onEvt = () => { refreshFavorites(); };
     window.addEventListener('favorites-updated', onEvt);
     return () => window.removeEventListener('favorites-updated', onEvt);
-  }, [refreshFavorites]);
+  }, [user, refreshFavorites]);
 
   async function toggleFav(name) {
+    if (!user) {
+      toast('Sign in to save favorites');
+      navigate('/login');
+      return;
+    }
     const had = favorites.has(name);
     try {
       if (had) await apiDelete(`/api/favorites/${encodeURIComponent(name)}`);
@@ -789,9 +800,11 @@ export default function MenuPage() {
                   </div>
 
                   {Object.keys(filteredStations).length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-start">
+                    <div className="columns-1 md:columns-2 xl:columns-3 gap-3">
                       {Object.keys(filteredStations).sort().map((station) => (
-                        <StationGroup key={station} station={station} items={filteredStations[station]} favorites={favorites} onToggleFav={toggleFav} expandSignal={expandSignal} />
+                        <div key={station} className="break-inside-avoid mb-3">
+                          <StationGroup station={station} items={filteredStations[station]} favorites={favorites} onToggleFav={toggleFav} expandSignal={expandSignal} />
+                        </div>
                       ))}
                     </div>
                   ) : (

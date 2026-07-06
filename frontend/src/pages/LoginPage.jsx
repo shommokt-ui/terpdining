@@ -72,7 +72,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex relative">
-      <div className="absolute top-4 right-4 z-10">
+      <div className="absolute right-4 z-10 top-[calc(env(safe-area-inset-top)+1rem)]">
         <ThemeToggle theme={theme} onToggle={toggleTheme} />
       </div>
 

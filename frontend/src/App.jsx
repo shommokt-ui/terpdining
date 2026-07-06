@@ -35,21 +35,21 @@ function AppRoutes() {
     <>
       {!hideNavbar && <Navbar />}
       {!hideNavbar && <AnnouncementBanner />}
-      <div key={location.pathname} className={`page-enter ${user ? 'pb-16 md:pb-0' : ''}`}>
+      <div key={location.pathname} className="page-enter pb-16 md:pb-0">
       <Routes>
         <Route path="/login" element={user ? <Navigate to="/menu" /> : <LoginPage />} />
         <Route path="/register" element={user ? <Navigate to="/menu" /> : <RegisterPage />} />
         <Route path="/forgot-password" element={user ? <Navigate to="/menu" /> : <ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/menu" element={<ProtectedRoute><MenuPage /></ProtectedRoute>} />
+        <Route path="/menu" element={<MenuPage />} />
         <Route path="/recipe" element={<ProtectedRoute><RecipePage /></ProtectedRoute>} />
         <Route path="/tracker" element={<ProtectedRoute><TrackerPage /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         <Route path="/privacy" element={<PrivacyPolicyPage />} />
-        <Route path="*" element={<Navigate to={user ? '/menu' : '/login'} replace />} />
+        <Route path="*" element={<Navigate to="/menu" replace />} />
       </Routes>
       </div>
-      {user && <BottomNav />}
+      <BottomNav />
     </>
   );
 }
