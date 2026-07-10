@@ -45,6 +45,3 @@ cd frontend && npm install && cd ..
 python -m uvicorn server:app --reload   # http://127.0.0.1:8000
 cd frontend && npm run dev              # http://localhost:5173
 ```
-
-Full deployment guide (Render, mobile builds, env vars, API reference) is in
-[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
