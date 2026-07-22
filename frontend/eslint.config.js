@@ -5,7 +5,9 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // ios/ and android/ contain generated native shells with compiled copies of the web
+  // bundle — never lint them.
+  globalIgnores(['dist', 'ios', 'android']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [
@@ -24,6 +26,14 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+    },
+  },
+  {
+    // Context modules intentionally export a hook alongside their provider — the
+    // standard React context pattern. Only fast-refresh granularity is affected.
+    files: ['src/context/**/*.{js,jsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
     },
   },
 ])

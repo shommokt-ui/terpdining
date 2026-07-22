@@ -5,14 +5,12 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Only loading when there's a stored token to validate.
+  const [loading, setLoading] = useState(() => Boolean(localStorage.getItem('token')));
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (!token) {
-      setLoading(false);
-      return;
-    }
+    if (!token) return;
     apiGet('/api/auth/me')
       .then((u) => setUser(u))
       .catch(() => localStorage.removeItem('token'))

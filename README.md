@@ -1,5 +1,7 @@
 # 🐢 TerpDining
 
+[![CI](https://github.com/shommokt-ui/terpdining/actions/workflows/ci.yml/badge.svg)](https://github.com/shommokt-ui/terpdining/actions/workflows/ci.yml)
+
 UMD dining hall app. Check menus, track macros, and get AI recipe ideas from
 what's actually on the menu today, on web, iOS, and Android. Unofficial
 student project, not affiliated with or endorsed by the University of

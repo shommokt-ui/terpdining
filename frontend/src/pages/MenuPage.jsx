@@ -6,7 +6,7 @@ import { useToast } from '../context/ToastContext';
 import { MEAL_HOURS } from '../mealHours';
 import { getPreferredHall } from '../preferences';
 import {
-  scheduleFavoriteNotifications,
+  scheduleUpcomingFavoriteNotifications,
   cancelPendingFavoriteNotifications,
   requestNotifyPermission,
   getNotifyPref,
@@ -146,9 +146,13 @@ function StationGroup({ station, items, favorites, onToggleFav, expandSignal }) 
   const [open, setOpen] = useState(true);
   const sorted = useMemo(() => [...items].sort((a, b) => a.name.localeCompare(b.name)), [items]);
 
-  useEffect(() => {
+  // Render-time state adjustment (not an effect): apply the parent's expand/collapse-all
+  // signal exactly once per signal change.
+  const [lastSignal, setLastSignal] = useState(expandSignal);
+  if (lastSignal !== expandSignal) {
+    setLastSignal(expandSignal);
     if (expandSignal.version > 0) setOpen(expandSignal.open);
-  }, [expandSignal]);
+  }
 
   return (
     <div className="border border-umd-gray rounded-lg overflow-hidden bg-white dark:bg-[#1c1c1c]">
@@ -436,6 +440,7 @@ function FavoritesModal({ open, favorites, onRemove, onClose }) {
     }
     setNotifyOn(true);
     setNotifyPref(true);
+    scheduleUpcomingFavoriteNotifications(favorites);
   }
 
   return (
@@ -523,8 +528,8 @@ export default function MenuPage() {
   }, [favorites, patchMenu]);
 
   useEffect(() => {
-    scheduleFavoriteNotifications({ data, favorites, date, isToday: date === today });
-  }, [data, favorites, date, today]);
+    scheduleUpcomingFavoriteNotifications(favorites);
+  }, [favorites]);
 
   const refreshFavorites = useCallback(async () => {
     if (!user) return;

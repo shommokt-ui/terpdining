@@ -17,7 +17,9 @@ function loadGoalsLocal() {
   try {
     const raw = localStorage.getItem(GOALS_LS_KEY);
     if (raw) return JSON.parse(raw);
-  } catch {}
+  } catch {
+    /* corrupted local goals — treat as unset */
+  }
   return null;
 }
 
@@ -68,11 +70,24 @@ export default function TrackerPage() {
     });
 
   const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => Boolean(user));
   const [goals, setGoals] = useState(loadGoalsLocal);
   const [celebrate, setCelebrate] = useState(false);
   const prevGoalsHit = useRef(false);
   const isToday = date === today;
+
+  // Render-time state adjustment: reset the day's view when the user or date changes,
+  // before the fetch effect below refills it.
+  const viewKey = `${user?.id ?? 'guest'}|${date}`;
+  const [prevViewKey, setPrevViewKey] = useState(viewKey);
+  if (prevViewKey !== viewKey) {
+    setPrevViewKey(viewKey);
+    setLogs([]);
+    setLoading(Boolean(user));
+    setCelebrate(false);
+    // prevGoalsHit resets via the celebration effect: cleared logs make goalsHit false,
+    // and its early-return branch writes that into the ref.
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -115,8 +130,9 @@ export default function TrackerPage() {
 
   const hasLoaded = useRef(false);
 
+  // The view-reset above already puts the page into its loading state before the first
+  // fetch for a user/date, so this never needs to set loading itself.
   const fetchLogs = useCallback(async (retries = 2) => {
-    if (!hasLoaded.current) setLoading(true);
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         const data = await apiGet(`/api/tracker/logs?date=${date}`);
@@ -136,12 +152,14 @@ export default function TrackerPage() {
   }, [date]);
 
   useEffect(() => {
-    if (!user) { setLogs([]); setLoading(false); hasLoaded.current = true; return; }
+    if (!user) { hasLoaded.current = true; return; }
     hasLoaded.current = false;
+    /* eslint-disable react-hooks/set-state-in-effect -- fetchLogs only sets state after
+       awaits (async, not a cascading render), and patchTracker resets a cross-component
+       navigation flag that cannot legally be updated during render. */
     fetchLogs();
     patchTracker({ dismissed: false });
-    setCelebrate(false);
-    prevGoalsHit.current = false;
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [fetchLogs, patchTracker, user]);
 
   async function handleLog(item) {
@@ -207,10 +225,10 @@ export default function TrackerPage() {
     const celebratedKey = `celebrated_${date}`;
     const alreadyCelebrated = localStorage.getItem(celebratedKey);
     if (!prevGoalsHit.current && !alreadyCelebrated) {
-      setCelebrate(true);
       localStorage.setItem(celebratedKey, '1');
-      const timer = setTimeout(() => setCelebrate(false), 3000);
-      return () => clearTimeout(timer);
+      const start = setTimeout(() => setCelebrate(true), 0);
+      const stop = setTimeout(() => setCelebrate(false), 3000);
+      return () => { clearTimeout(start); clearTimeout(stop); };
     }
     prevGoalsHit.current = goalsHit;
   }, [goalsHit, loading, date]);
@@ -462,35 +480,41 @@ function GoalEditor({ goals, onSave, onClear, onClose }) {
   );
 }
 
-function Confetti() {
-  const particles = Array.from({ length: 40 }, (_, i) => {
-    const left = Math.random() * 100;
-    const delay = Math.random() * 0.5;
-    const duration = 1.5 + Math.random() * 1.5;
-    const size = 6 + Math.random() * 6;
-    const colors = ['#e21833', '#ffd200', '#3b82f6', '#22c55e', '#f97316', '#a855f7'];
-    const color = colors[Math.floor(Math.random() * colors.length)];
-    const drift = (Math.random() - 0.5) * 80;
-    const rotation = Math.random() * 720;
+const CONFETTI_COLORS = ['#e21833', '#ffd200', '#3b82f6', '#22c55e', '#f97316', '#a855f7'];
 
-    return (
-      <div
-        key={i}
-        className="absolute rounded-sm"
-        style={{
-          left: `${left}%`,
-          top: '-10px',
-          width: size,
-          height: size * 0.6,
-          backgroundColor: color,
-          opacity: 0,
-          animation: `confettiFall ${duration}s ${delay}s ease-out forwards`,
-          '--drift': `${drift}px`,
-          '--rotation': `${rotation}deg`,
-        }}
-      />
-    );
-  });
+function makeConfettiParticles() {
+  return Array.from({ length: 40 }, () => ({
+    left: Math.random() * 100,
+    delay: Math.random() * 0.5,
+    duration: 1.5 + Math.random() * 1.5,
+    size: 6 + Math.random() * 6,
+    color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+    drift: (Math.random() - 0.5) * 80,
+    rotation: Math.random() * 720,
+  }));
+}
+
+function Confetti() {
+  // Generated once per mount, not per render — re-rolling positions on every render
+  // would restart the animation mid-fall.
+  const [particleSpecs] = useState(makeConfettiParticles);
+  const particles = particleSpecs.map((p, i) => (
+    <div
+      key={i}
+      className="absolute rounded-sm"
+      style={{
+        left: `${p.left}%`,
+        top: '-10px',
+        width: p.size,
+        height: p.size * 0.6,
+        backgroundColor: p.color,
+        opacity: 0,
+        animation: `confettiFall ${p.duration}s ${p.delay}s ease-out forwards`,
+        '--drift': `${p.drift}px`,
+        '--rotation': `${p.rotation}deg`,
+      }}
+    />
+  ));
 
   return (
     <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">

@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { MEAL_HOURS } from '../mealHours';
+import { apiGet } from '../api';
 
 const SENT_KEY = 'favorite_notifications_sent_v1';
 const PREF_KEY = 'favorite_notifications_pref';
@@ -90,14 +91,13 @@ function describeMeal(itemHalls) {
   return `Now being served: ${entries.map(([name, halls]) => `${name} (${listJoin([...halls])})`).join(', ')}.`;
 }
 
-// Schedules one local notification per meal where favorited items are on today's menu —
-// all favorites and all halls serving them are combined into that single notification,
-// so an item served at every hall still produces only one alert. A (date, meal) combo
-// already scheduled is skipped so reopening the app never re-sends. Only meaningful for
-// today's menu, since that's the only day a "the hall just opened" notification makes
-// sense for.
-export async function scheduleFavoriteNotifications({ data, favorites, date, isToday }) {
-  if (!isToday || !data || !favorites || favorites.size === 0) return;
+// Schedules one local notification per meal where favorited items are on the given
+// day's menu — all favorites and all halls serving them are combined into that single
+// notification, so an item served at every hall still produces only one alert. A
+// (date, meal) combo already scheduled is skipped so reopening the app never re-sends,
+// and meals whose opening time already passed are skipped entirely.
+export async function scheduleFavoriteNotifications({ data, favorites, date }) {
+  if (!data || !favorites || favorites.size === 0) return;
   if (!Capacitor.isNativePlatform()) return;
   if (getNotifyPref() !== 'on') return;
 
@@ -149,5 +149,32 @@ export async function scheduleFavoriteNotifications({ data, favorites, date, isT
     saveSent(sent);
   } catch {
     /* ignore scheduling failure, e.g. permission revoked mid-flight */
+  }
+}
+
+function dateStrWithOffset(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Fetches the menus for today and tomorrow and schedules favorite notifications for
+// both, so a user who doesn't open the app on a given morning still gets that day's
+// alerts as long as they opened it the day before. Local notifications persist through
+// app closes, so scheduling ahead is safe; the per-(date, meal) dedupe store keeps
+// repeated calls idempotent.
+export async function scheduleUpcomingFavoriteNotifications(favorites) {
+  if (!favorites || favorites.size === 0) return;
+  if (!Capacitor.isNativePlatform()) return;
+  if (getNotifyPref() !== 'on') return;
+
+  for (const offset of [0, 1]) {
+    const date = dateStrWithOffset(offset);
+    try {
+      const data = await apiGet(`/api/menu/browse?dt=${date}`);
+      await scheduleFavoriteNotifications({ data, favorites, date });
+    } catch {
+      /* menu not posted yet or offline — try again next app open */
+    }
   }
 }
