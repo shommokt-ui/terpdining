@@ -74,41 +74,54 @@ function openTimeFor(meal, dateStr) {
   return at > new Date() ? at : null;
 }
 
-function combineNames(names) {
-  if (names.length === 1) return `${names[0]} is now available`;
-  if (names.length === 2) return `${names[0]} and ${names[1]} are now available`;
-  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]} are now available`;
+function listJoin(items) {
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`;
 }
 
-// Schedules one local notification per (hall, meal) where a favorited item is on today's
-// menu, combining multiple favorites at the same meal into a single notification, and
-// skipping any (date, hall, meal) combo already scheduled so reopening the app never
-// re-sends. Only meaningful for today's menu, since that's the only day a "the hall just
-// opened" notification makes sense for.
+// itemHalls: Map<item name, Set<hall>>
+function describeMeal(itemHalls) {
+  const entries = [...itemHalls.entries()];
+  if (entries.length === 1) {
+    const [name, halls] = entries[0];
+    return `${name} is now available at ${listJoin([...halls])}.`;
+  }
+  return `Now being served: ${entries.map(([name, halls]) => `${name} (${listJoin([...halls])})`).join(', ')}.`;
+}
+
+// Schedules one local notification per meal where favorited items are on today's menu —
+// all favorites and all halls serving them are combined into that single notification,
+// so an item served at every hall still produces only one alert. A (date, meal) combo
+// already scheduled is skipped so reopening the app never re-sends. Only meaningful for
+// today's menu, since that's the only day a "the hall just opened" notification makes
+// sense for.
 export async function scheduleFavoriteNotifications({ data, favorites, date, isToday }) {
   if (!isToday || !data || !favorites || favorites.size === 0) return;
   if (!Capacitor.isNativePlatform()) return;
   if (getNotifyPref() !== 'on') return;
 
-  const byHallMeal = new Map();
+  // meal -> Map<item name, Set<hall>>
+  const byMeal = new Map();
   for (const [hall, meals] of Object.entries(data.halls)) {
     for (const [meal, stations] of Object.entries(meals)) {
       for (const items of Object.values(stations)) {
         for (const item of items) {
           if (!favorites.has(item.name)) continue;
-          const key = `${hall}|${meal}`;
-          if (!byHallMeal.has(key)) byHallMeal.set(key, { hall, meal, names: new Set() });
-          byHallMeal.get(key).names.add(item.name);
+          if (!byMeal.has(meal)) byMeal.set(meal, new Map());
+          const itemHalls = byMeal.get(meal);
+          if (!itemHalls.has(item.name)) itemHalls.set(item.name, new Set());
+          itemHalls.get(item.name).add(hall);
         }
       }
     }
   }
-  if (byHallMeal.size === 0) return;
+  if (byMeal.size === 0) return;
 
   const sent = loadSent();
-  const pending = [...byHallMeal.values()]
-    .map((entry) => ({ ...entry, at: openTimeFor(entry.meal, date) }))
-    .filter(({ hall, meal, at }) => at !== null && !sent.has(`${date}|${hall}|${meal}`));
+  const pending = [...byMeal.entries()]
+    .map(([meal, itemHalls]) => ({ meal, itemHalls, at: openTimeFor(meal, date) }))
+    .filter(({ meal, at }) => at !== null && !sent.has(`${date}|${meal}`));
   if (pending.length === 0) return;
 
   // Permission was granted when the user opted in; re-check silently in case it was
@@ -120,13 +133,13 @@ export async function scheduleFavoriteNotifications({ data, favorites, date, isT
     return;
   }
 
-  const notifications = pending.map(({ hall, meal, names, at }) => {
-    const dedupeKey = `${date}|${hall}|${meal}`;
+  const notifications = pending.map(({ meal, itemHalls, at }) => {
+    const dedupeKey = `${date}|${meal}`;
     sent.add(dedupeKey);
     return {
       id: idFor(dedupeKey),
-      title: 'Your favorite is being served!',
-      body: `${combineNames([...names])} at ${hall}.`,
+      title: itemHalls.size === 1 ? 'Your favorite is being served!' : 'Your favorites are being served!',
+      body: describeMeal(itemHalls),
       schedule: { at },
     };
   });

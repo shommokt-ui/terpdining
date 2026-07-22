@@ -4,12 +4,21 @@ import { apiPost } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
+import { getPreferredHall, setPreferredHall } from '../preferences';
+
+const HALLS = ['South Campus', 'Yahentamitsi Dining Hall', '251 North'];
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const toast = useToast();
   const navigate = useNavigate();
+  const [preferredHall, setPreferredHallState] = useState(getPreferredHall);
+
+  function handlePreferredHall(hall) {
+    setPreferredHallState(hall);
+    setPreferredHall(hall);
+  }
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -112,6 +121,39 @@ export default function SettingsPage() {
         >
           Switch to {theme === 'dark' ? 'light' : 'dark'}
         </button>
+      </div>
+
+      {/* preferred dining hall */}
+      <div className="umd-card rounded-2xl p-6 space-y-3">
+        <div>
+          <h2 className="text-lg font-bold text-umd-black">Preferred dining hall</h2>
+          <p className="text-xs text-umd-body">Opens automatically when you view the menu.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => handlePreferredHall('')}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+              preferredHall === ''
+                ? 'bg-umd-red border-umd-red text-white'
+                : 'border-umd-gray text-umd-body hover:border-umd-red hover:text-umd-red'
+            }`}
+          >
+            No preference
+          </button>
+          {HALLS.map((hall) => (
+            <button
+              key={hall}
+              onClick={() => handlePreferredHall(hall)}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+                preferredHall === hall
+                  ? 'bg-umd-red border-umd-red text-white'
+                  : 'border-umd-gray text-umd-body hover:border-umd-red hover:text-umd-red'
+              }`}
+            >
+              {hall}
+            </button>
+          ))}
+        </div>
       </div>
 
       {user && (

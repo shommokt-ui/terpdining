@@ -29,7 +29,7 @@ export default function Navbar() {
             {onMenuPage && (
               <button
                 onClick={() => patchMenu({ showFavManager: !menu.showFavManager })}
-                className={`p-2 rounded-lg transition-colors ${menu.showFavManager ? 'bg-white text-umd-red' : 'text-white hover:bg-white/10'}`}
+                className={`p-2 rounded-lg transition-colors ${menu.showFavManager ? 'bg-white text-umd-red dark:bg-white/20 dark:text-white' : 'text-white hover:bg-white/10'}`}
                 title="My favorites"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill={menu.favoritesCount > 0 ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>

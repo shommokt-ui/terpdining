@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigationState } from '../context/NavigationStateContext';
 import { useToast } from '../context/ToastContext';
 import { MEAL_HOURS } from '../mealHours';
+import { getPreferredHall } from '../preferences';
 import {
   scheduleFavoriteNotifications,
   cancelPendingFavoriteNotifications,
@@ -621,6 +622,14 @@ export default function MenuPage() {
   }, [date]);
 
   useEffect(() => { fetchMenu(); }, [fetchMenu]);
+
+  // Auto-open the preferred hall (Settings) on first visit; never overrides a hall the
+  // user has already picked, since activeHall persists in navigation state.
+  useEffect(() => {
+    if (!data || activeHall) return;
+    const pref = getPreferredHall();
+    if (pref && data.halls[pref]) patchMenu({ activeHall: pref });
+  }, [data, activeHall, patchMenu]);
 
   useEffect(() => {
     if (data && activeHall && data.halls[activeHall]) {
