@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 function SectionIcon({ path }) {
   return (
@@ -9,14 +9,20 @@ function SectionIcon({ path }) {
 }
 
 export default function PrivacyPolicyPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  // location.key is "default" only when this page is the first thing loaded (deep link),
+  // in which case there's no in-app history to go back to.
+  const goBack = () => (location.key === 'default' ? navigate('/menu') : navigate(-1));
+
   return (
     <div className="umd-container max-w-2xl mx-auto px-4 py-10">
-      <Link to="/login" className="text-xs font-semibold text-umd-body hover:text-umd-red inline-flex items-center gap-1 mb-6">
+      <button onClick={goBack} className="text-xs font-semibold text-umd-body hover:text-umd-red inline-flex items-center gap-1 mb-6">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
-        Back to sign in
-      </Link>
+        Back
+      </button>
 
       <div className="mb-10">
         <span className="umd-overline text-umd-red text-xs">Legal</span>

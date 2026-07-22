@@ -186,6 +186,10 @@ export default function LoginPage() {
             <Link to="/privacy" className="hover:text-umd-red hover:underline">
               Privacy Policy
             </Link>
+            {' '}&middot;{' '}
+            <Link to="/terms" className="hover:text-umd-red hover:underline">
+              Terms of Use
+            </Link>
           </p>
         </div>
       </div>

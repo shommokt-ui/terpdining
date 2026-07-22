@@ -93,6 +93,7 @@ export default function RegisterPage() {
 
         <p className="mt-3 text-center text-[11px] text-umd-gray-dark">
           By creating an account you agree to our{' '}
+          <Link to="/terms" className="underline hover:text-umd-red">Terms of Use</Link> and{' '}
           <Link to="/privacy" className="underline hover:text-umd-red">Privacy Policy</Link>.
         </p>
 

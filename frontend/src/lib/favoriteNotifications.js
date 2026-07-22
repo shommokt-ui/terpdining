@@ -64,13 +64,14 @@ function idFor(key) {
   return h % 2147483647;
 }
 
+// Returns the meal's opening time, or null if the hall already opened for that meal —
+// notifications only fire at opening, never retroactively mid-meal.
 function openTimeFor(meal, dateStr) {
+  const startHour = MEAL_HOURS[meal]?.[0];
+  if (startHour == null) return null;
   const [year, month, day] = dateStr.split('-').map(Number);
-  const startHour = MEAL_HOURS[meal]?.[0] ?? 12;
   const at = new Date(year, month - 1, day, Math.floor(startHour), Math.round((startHour % 1) * 60), 0, 0);
-  const now = new Date();
-  // Meal period already started today: fire almost immediately instead of in the past.
-  return at > now ? at : new Date(now.getTime() + 5000);
+  return at > new Date() ? at : null;
 }
 
 function combineNames(names) {
@@ -105,9 +106,9 @@ export async function scheduleFavoriteNotifications({ data, favorites, date, isT
   if (byHallMeal.size === 0) return;
 
   const sent = loadSent();
-  const pending = [...byHallMeal.values()].filter(
-    ({ hall, meal }) => !sent.has(`${date}|${hall}|${meal}`)
-  );
+  const pending = [...byHallMeal.values()]
+    .map((entry) => ({ ...entry, at: openTimeFor(entry.meal, date) }))
+    .filter(({ hall, meal, at }) => at !== null && !sent.has(`${date}|${hall}|${meal}`));
   if (pending.length === 0) return;
 
   // Permission was granted when the user opted in; re-check silently in case it was
@@ -119,14 +120,14 @@ export async function scheduleFavoriteNotifications({ data, favorites, date, isT
     return;
   }
 
-  const notifications = pending.map(({ hall, meal, names }) => {
+  const notifications = pending.map(({ hall, meal, names, at }) => {
     const dedupeKey = `${date}|${hall}|${meal}`;
     sent.add(dedupeKey);
     return {
       id: idFor(dedupeKey),
       title: 'Your favorite is being served!',
       body: `${combineNames([...names])} at ${hall}.`,
-      schedule: { at: openTimeFor(meal, date) },
+      schedule: { at },
     };
   });
 

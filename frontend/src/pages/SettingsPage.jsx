@@ -208,6 +208,12 @@ export default function SettingsPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
           </Link>
+          <Link to="/terms" className="flex items-center justify-between py-2.5 text-umd-body hover:text-umd-red">
+            Terms of Use
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
           <a href="mailto:terpdining@gmail.com?subject=TerpDining%20help" className="flex items-center justify-between py-2.5 text-umd-body hover:text-umd-red">
             Help
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

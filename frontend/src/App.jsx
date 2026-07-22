@@ -16,6 +16,7 @@ import RecipePage from './pages/RecipePage';
 import TrackerPage from './pages/TrackerPage';
 import SettingsPage from './pages/SettingsPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import TermsOfUsePage from './pages/TermsOfUsePage';
 
 function AppRoutes() {
   const { user, loading } = useAuth();
@@ -39,6 +40,7 @@ function AppRoutes() {
         <Route path="/tracker" element={<TrackerPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/privacy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms" element={<TermsOfUsePage />} />
         <Route path="*" element={<Navigate to="/menu" replace />} />
       </Routes>
       </div>
