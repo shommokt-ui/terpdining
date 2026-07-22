@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { apiPost } from '../api';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
 import { getPreferredHall, setPreferredHall } from '../preferences';
 
@@ -10,7 +9,6 @@ const HALLS = ['South Campus', 'Yahentamitsi Dining Hall', '251 North'];
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const toast = useToast();
   const navigate = useNavigate();
   const [preferredHall, setPreferredHallState] = useState(getPreferredHall);
@@ -108,20 +106,6 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
-
-      {/* appearance */}
-      <div className="umd-card rounded-2xl p-6 flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-bold text-umd-black">Appearance</h2>
-          <p className="text-xs text-umd-body">Currently using {theme} mode.</p>
-        </div>
-        <button
-          onClick={toggleTheme}
-          className="border border-umd-gray text-umd-black hover:border-umd-red hover:text-umd-red font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
-        >
-          Switch to {theme === 'dark' ? 'light' : 'dark'}
-        </button>
-      </div>
 
       {/* preferred dining hall */}
       <div className="umd-card rounded-2xl p-6 space-y-3">
