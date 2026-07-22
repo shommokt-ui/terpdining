@@ -27,29 +27,15 @@ export default function Navbar() {
 
           <div className="flex items-center gap-1">
             {onMenuPage && (
-              <>
-                {/* favorites */}
-                <button
-                  onClick={() => patchMenu({ showFavManager: !menu.showFavManager })}
-                  className={`p-2 rounded-lg transition-colors ${menu.showFavManager ? 'bg-white text-umd-red' : 'text-white hover:bg-white/10'}`}
-                  title="My favorites"
-                >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill={menu.favoritesCount > 0 ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
-                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                  </svg>
-                </button>
-
-                {/* legend */}
-                <button
-                  onClick={() => patchMenu({ legendOpen: true })}
-                  className="p-2 rounded-lg text-white hover:bg-white/10 transition-colors"
-                  title="Icon legend"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </button>
-              </>
+              <button
+                onClick={() => patchMenu({ showFavManager: !menu.showFavManager })}
+                className={`p-2 rounded-lg transition-colors ${menu.showFavManager ? 'bg-white text-umd-red' : 'text-white hover:bg-white/10'}`}
+                title="My favorites"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill={menu.favoritesCount > 0 ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+              </button>
             )}
 
             <ThemeToggle theme={theme} onToggle={toggleTheme} variant="onRed" />

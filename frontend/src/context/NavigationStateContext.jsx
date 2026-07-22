@@ -11,7 +11,6 @@ const defaultMenu = {
   activeMeal: null,
   includeTags: [],
   excludeTags: [],
-  legendOpen: false,
   showFavManager: false,
   searchQuery: '',
   favoritesCount: 0,

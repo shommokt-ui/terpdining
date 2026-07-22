@@ -233,10 +233,7 @@ export default function TrackerPage() {
       {celebrate && <Confetti />}
 
       {!user && (
-        <div className="rounded-lg px-4 py-2.5 flex items-center gap-3 text-sm font-semibold bg-umd-gold/20 dark:bg-umd-gold/10 border border-umd-gold/50 text-umd-black">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 shrink-0">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+        <div className="rounded-lg px-4 py-2.5 text-sm font-semibold bg-umd-gold/20 dark:bg-umd-gold/10 border border-umd-gold/50 text-umd-black">
           Sign in to log meals and save your daily goals.
         </div>
       )}
@@ -316,7 +313,9 @@ export default function TrackerPage() {
       {showCongrats && (
         <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800/50 rounded-xl px-4 py-3 flex items-center justify-between animate-[slideIn_0.4s_ease-out]">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">🎉</span>
+            <svg className="w-6 h-6 text-green-600 dark:text-green-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             <div>
               <div className="text-sm font-bold text-green-800 dark:text-green-300">You hit your goals today! Nice job.</div>
               <div className="text-xs text-green-700 dark:text-green-400">Keep up the grind.</div>

@@ -3,6 +3,43 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { MEAL_HOURS } from '../mealHours';
 
 const SENT_KEY = 'favorite_notifications_sent_v1';
+const PREF_KEY = 'favorite_notifications_pref';
+
+export function isNativeApp() {
+  return Capacitor.isNativePlatform();
+}
+
+// Unset means "not asked yet" so the UI knows to ask; only an explicit 'on' enables scheduling.
+export function getNotifyPref() {
+  return localStorage.getItem(PREF_KEY);
+}
+
+export function setNotifyPref(on) {
+  localStorage.setItem(PREF_KEY, on ? 'on' : 'off');
+}
+
+// Asks the OS for notification permission. Returns true only if the user granted it.
+export async function requestNotifyPermission() {
+  try {
+    const perms = await LocalNotifications.checkPermissions();
+    if (perms.display === 'granted') return true;
+    const req = await LocalNotifications.requestPermissions();
+    return req.display === 'granted';
+  } catch {
+    return false;
+  }
+}
+
+// Turning notifications off cancels anything already queued for later today.
+export async function cancelPendingFavoriteNotifications() {
+  try {
+    const { notifications } = await LocalNotifications.getPending();
+    if (notifications.length > 0) await LocalNotifications.cancel({ notifications });
+  } catch {
+    /* ignore */
+  }
+  localStorage.removeItem(SENT_KEY);
+}
 
 function loadSent() {
   try {
@@ -50,6 +87,7 @@ function combineNames(names) {
 export async function scheduleFavoriteNotifications({ data, favorites, date, isToday }) {
   if (!isToday || !data || !favorites || favorites.size === 0) return;
   if (!Capacitor.isNativePlatform()) return;
+  if (getNotifyPref() !== 'on') return;
 
   const byHallMeal = new Map();
   for (const [hall, meals] of Object.entries(data.halls)) {
@@ -72,12 +110,11 @@ export async function scheduleFavoriteNotifications({ data, favorites, date, isT
   );
   if (pending.length === 0) return;
 
+  // Permission was granted when the user opted in; re-check silently in case it was
+  // revoked in Settings since, but never pop the OS prompt from here.
   try {
     const perms = await LocalNotifications.checkPermissions();
-    if (perms.display !== 'granted') {
-      const req = await LocalNotifications.requestPermissions();
-      if (req.display !== 'granted') return;
-    }
+    if (perms.display !== 'granted') return;
   } catch {
     return;
   }
@@ -87,7 +124,7 @@ export async function scheduleFavoriteNotifications({ data, favorites, date, isT
     sent.add(dedupeKey);
     return {
       id: idFor(dedupeKey),
-      title: '🍽️ Your favorite is being served!',
+      title: 'Your favorite is being served!',
       body: `${combineNames([...names])} at ${hall}.`,
       schedule: { at: openTimeFor(meal, date) },
     };

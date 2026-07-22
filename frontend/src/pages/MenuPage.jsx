@@ -3,9 +3,15 @@ import { apiGet, apiPost, apiDelete } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useNavigationState } from '../context/NavigationStateContext';
 import { useToast } from '../context/ToastContext';
-import Drawer from '../components/Drawer';
 import { MEAL_HOURS } from '../mealHours';
-import { scheduleFavoriteNotifications } from '../lib/favoriteNotifications';
+import {
+  scheduleFavoriteNotifications,
+  cancelPendingFavoriteNotifications,
+  requestNotifyPermission,
+  getNotifyPref,
+  setNotifyPref,
+  isNativeApp,
+} from '../lib/favoriteNotifications';
 
 const MEAL_ORDER = ['Breakfast', 'Brunch', 'Lunch', 'Dinner'];
 
@@ -111,57 +117,6 @@ function ItemBadges({ tags }) {
   return (
     <div className="flex gap-1 flex-wrap justify-end">
       {matching.map((t) => <BadgeCircle key={t} tag={t} />)}
-    </div>
-  );
-}
-
-function LegendModal({ open, onClose }) {
-  const dietary = Object.entries(ALL_BADGES).filter(([k]) => INCLUDE_TAGS.includes(k));
-  const allergens = Object.entries(ALL_BADGES).filter(([k]) => !INCLUDE_TAGS.includes(k));
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-xs max-h-[75vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-umd-gray">
-          <span className="text-base font-bold text-umd-black">Icon Legend</span>
-          <button onClick={onClose} className="text-umd-gray-dark hover:text-umd-red p-1 rounded-lg hover:bg-umd-gray-light transition-colors" aria-label="Close">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <div className="px-4 py-3">
-          <div className="text-[11px] font-semibold text-umd-gray-dark uppercase tracking-wide mb-2">Allergens</div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-2 mb-4">
-            {allergens.map(([key]) => (
-              <div key={key} className="flex items-center gap-2">
-                <BadgeCircle tag={key} size="lg" />
-                <span className="text-sm text-umd-body">{ALL_BADGES[key].label}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="text-[11px] font-semibold text-umd-gray-dark uppercase tracking-wide mb-2">Dietary</div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-            {dietary.map(([key]) => (
-              <div key={key} className="flex items-center gap-2">
-                <BadgeCircle tag={key} size="lg" />
-                <span className="text-sm text-umd-body">{ALL_BADGES[key].label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -452,31 +407,85 @@ function SearchResults({ data, query, includeTags, excludeTags, favorites, onTog
   );
 }
 
-function FavoritesDrawer({ open, favorites, onRemove, onClose }) {
+function FavoritesModal({ open, favorites, onRemove, onClose }) {
+  const toast = useToast();
   const sorted = useMemo(() => [...favorites].sort(), [favorites]);
+  const [notifyOn, setNotifyOn] = useState(() => getNotifyPref() === 'on');
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  async function toggleNotify() {
+    if (notifyOn) {
+      setNotifyOn(false);
+      setNotifyPref(false);
+      await cancelPendingFavoriteNotifications();
+      return;
+    }
+    const granted = await requestNotifyPermission();
+    if (!granted) {
+      toast('Notifications are blocked. Enable them in Settings for TerpDining.');
+      return;
+    }
+    setNotifyOn(true);
+    setNotifyPref(true);
+  }
 
   return (
-    <Drawer open={open} onClose={onClose} title={`Your Favorites (${sorted.length})`}>
-      {sorted.length === 0 ? (
-        <div className="h-full flex flex-col items-center justify-center text-center px-4">
-          <div className="text-3xl mb-2">🤍</div>
-          <p className="text-sm text-umd-body max-w-[220px]">No favorites yet. Tap the heart next to any menu item to add it.</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-xs max-h-[70vh] flex flex-col">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-umd-gray">
+          <span className="text-base font-bold text-umd-black">Favorites ({sorted.length})</span>
+          <button onClick={onClose} className="text-umd-gray-dark hover:text-umd-red p-1 rounded-lg hover:bg-umd-gray-light transition-colors" aria-label="Close">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
-      ) : (
-        <div className="divide-y divide-umd-gray-light">
-          {sorted.map((name) => (
-            <div key={name} className="flex items-center justify-between py-2.5 gap-2">
-              <span className="text-sm text-umd-black min-w-0 truncate">{name}</span>
-              <button onClick={() => onRemove(name)} className="text-umd-gray-dark hover:text-red-500 p-1 shrink-0" title="Remove">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+
+        {isNativeApp() && (
+          <div className="px-4 py-3 border-b border-umd-gray flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-umd-black">Notify me</div>
+              <div className="text-xs text-umd-body">Get an alert when a favorite is being served</div>
             </div>
-          ))}
-        </div>
-      )}
-    </Drawer>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={notifyOn}
+              onClick={toggleNotify}
+              className={`relative w-11 h-6 rounded-full shrink-0 transition-colors ${notifyOn ? 'bg-umd-red' : 'bg-gray-300 dark:bg-gray-600'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${notifyOn ? 'translate-x-5' : ''}`} />
+            </button>
+          </div>
+        )}
+
+        {sorted.length === 0 ? (
+          <p className="text-sm text-umd-body text-center px-6 py-8">No favorites yet. Tap the heart next to any menu item to add it.</p>
+        ) : (
+          <div className="overflow-y-auto divide-y divide-umd-gray-light px-4">
+            {sorted.map((name) => (
+              <div key={name} className="flex items-center justify-between py-2.5 gap-2">
+                <span className="text-sm text-umd-black min-w-0 truncate">{name}</span>
+                <button onClick={() => onRemove(name)} className="text-umd-gray-dark hover:text-red-500 p-1 shrink-0" title="Remove">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -498,8 +507,6 @@ export default function MenuPage() {
   const excludeTags = menu.excludeTags;
   const searchQuery = menu.searchQuery;
   const setSearchQuery = (v) => patchMenu({ searchQuery: v });
-  const legendOpen = menu.legendOpen;
-  const setLegendOpen = (v) => patchMenu({ legendOpen: typeof v === 'function' ? v(menu.legendOpen) : v });
   const showFavManager = menu.showFavManager;
   const setShowFavManager = (v) => patchMenu({ showFavManager: typeof v === 'function' ? v(menu.showFavManager) : v });
 
@@ -553,6 +560,16 @@ export default function MenuPage() {
     return () => window.removeEventListener('favorites-updated', onEvt);
   }, [user, refreshFavorites]);
 
+  // First time a favorite is added in the native app, ask (via the OS prompt) whether
+  // they want alerts when a favorite is being served. Their answer becomes the pref;
+  // it stays adjustable from the toggle in the favorites modal.
+  async function maybeAskNotifyPermission() {
+    if (!isNativeApp() || getNotifyPref() !== null) return;
+    const granted = await requestNotifyPermission();
+    setNotifyPref(granted);
+    if (granted) toast("You'll get an alert when a favorite is being served");
+  }
+
   async function toggleFav(name) {
     const had = favorites.has(name);
     if (!user) {
@@ -561,13 +578,17 @@ export default function MenuPage() {
         if (had) next.delete(name); else next.add(name);
         return next;
       });
-      if (!had) toast("Favorites won't be saved unless you sign in");
+      if (!had) {
+        toast("Favorites won't be saved unless you sign in");
+        maybeAskNotifyPermission();
+      }
       return;
     }
     try {
       if (had) await apiDelete(`/api/favorites/${encodeURIComponent(name)}`);
       else await apiPost('/api/favorites', { name });
       await refreshFavorites();
+      if (!had) maybeAskNotifyPermission();
     } catch {
       toast(`Couldn't ${had ? 'remove' : 'save'} favorite. Check your connection.`);
     }
@@ -651,20 +672,13 @@ export default function MenuPage() {
         <MenuSkeleton />
       ) : !data || hallsWithData.length === 0 ? (
         <div className="flex flex-col items-center text-center py-16 px-4">
-          <div className="text-6xl mb-4">{tooFarAhead ? '📅🐢' : '🌴🐢'}</div>
+          <div className="text-6xl mb-4">🐢</div>
           <h2 className="text-2xl umd-hero-title text-umd-black mb-2">
-            {tooFarAhead ? "You're too far ahead!" : 'Terps are enjoying their summer!'}
+            {tooFarAhead ? 'No Menu' : 'Terps are enjoying their summer!'}
           </h2>
           <p className="text-umd-body text-sm max-w-md mb-6">
             {tooFarAhead ? (
-              <>
-                UMD hasn&apos;t posted menus for{' '}
-                <span className="font-semibold text-umd-black">{date}</span> yet. Try an earlier date
-                {data?.latest_date ? (
-                  <>. Menus are available through{' '}
-                    <span className="font-semibold text-umd-black">{data.latest_date}</span>.</>
-                ) : '.'}
-              </>
+              'UMD has not posted menus for this date.'
             ) : date === today ? (
               <>
                 No menus posted for today <span className="font-semibold text-umd-black"></span>. See you during the semester!
@@ -800,7 +814,7 @@ export default function MenuPage() {
 
           {!hallHasData ? (
             <div className="flex flex-col items-center text-center py-16 px-4">
-              <div className="text-6xl mb-4">🌴🐢</div>
+              <div className="text-6xl mb-4">🐢</div>
               <h2 className="text-2xl umd-hero-title text-umd-black mb-2">Terps are on their summer break!</h2>
               <p className="text-umd-body text-sm max-w-md">
                 No menu found for <span className="font-semibold text-umd-black">{activeHall}</span> on
@@ -890,13 +904,12 @@ export default function MenuPage() {
         </>
       )}
 
-      <FavoritesDrawer
+      <FavoritesModal
         open={showFavManager}
         favorites={favorites}
         onRemove={removeFav}
         onClose={() => setShowFavManager(false)}
       />
-      <LegendModal open={legendOpen} onClose={() => setLegendOpen(false)} />
     </div>
   );
 }
