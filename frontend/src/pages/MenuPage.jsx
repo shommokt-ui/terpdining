@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigationState } from '../context/NavigationStateContext';
 import { useToast } from '../context/ToastContext';
 import Drawer from '../components/Drawer';
+import { MEAL_HOURS } from '../mealHours';
+import { scheduleFavoriteNotifications } from '../lib/favoriteNotifications';
 
 const MEAL_ORDER = ['Breakfast', 'Brunch', 'Lunch', 'Dinner'];
 
@@ -30,14 +32,6 @@ const ALL_BADGES = {
 function localDateStr(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-
-// Approximate UMD dining hall serving windows, in hours.
-const MEAL_HOURS = {
-  Breakfast: [7, 11],
-  Brunch: [9, 14],
-  Lunch: [11, 16],
-  Dinner: [16.5, 21],
-};
 
 function isServingNow(meal) {
   const range = MEAL_HOURS[meal];
@@ -121,32 +115,54 @@ function ItemBadges({ tags }) {
   );
 }
 
-function LegendDrawer({ open, onClose }) {
+function LegendModal({ open, onClose }) {
   const dietary = Object.entries(ALL_BADGES).filter(([k]) => INCLUDE_TAGS.includes(k));
   const allergens = Object.entries(ALL_BADGES).filter(([k]) => !INCLUDE_TAGS.includes(k));
 
-  return (
-    <Drawer open={open} onClose={onClose} title="Icon Legend">
-      <div className="text-[11px] font-semibold text-umd-gray-dark uppercase tracking-wide mb-2">Allergens</div>
-      <div className="space-y-2.5 mb-5">
-        {allergens.map(([key]) => (
-          <div key={key} className="flex items-center gap-2.5">
-            <BadgeCircle tag={key} size="lg" />
-            <span className="text-sm text-umd-body">{ALL_BADGES[key].label}</span>
-          </div>
-        ))}
-      </div>
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
 
-      <div className="text-[11px] font-semibold text-umd-gray-dark uppercase tracking-wide mb-2">Dietary</div>
-      <div className="space-y-2.5">
-        {dietary.map(([key]) => (
-          <div key={key} className="flex items-center gap-2.5">
-            <BadgeCircle tag={key} size="lg" />
-            <span className="text-sm text-umd-body">{ALL_BADGES[key].label}</span>
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-xs max-h-[75vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-umd-gray">
+          <span className="text-base font-bold text-umd-black">Icon Legend</span>
+          <button onClick={onClose} className="text-umd-gray-dark hover:text-umd-red p-1 rounded-lg hover:bg-umd-gray-light transition-colors" aria-label="Close">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="px-4 py-3">
+          <div className="text-[11px] font-semibold text-umd-gray-dark uppercase tracking-wide mb-2">Allergens</div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2 mb-4">
+            {allergens.map(([key]) => (
+              <div key={key} className="flex items-center gap-2">
+                <BadgeCircle tag={key} size="lg" />
+                <span className="text-sm text-umd-body">{ALL_BADGES[key].label}</span>
+              </div>
+            ))}
           </div>
-        ))}
+
+          <div className="text-[11px] font-semibold text-umd-gray-dark uppercase tracking-wide mb-2">Dietary</div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+            {dietary.map(([key]) => (
+              <div key={key} className="flex items-center gap-2">
+                <BadgeCircle tag={key} size="lg" />
+                <span className="text-sm text-umd-body">{ALL_BADGES[key].label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
-    </Drawer>
+    </div>
   );
 }
 
@@ -442,7 +458,10 @@ function FavoritesDrawer({ open, favorites, onRemove, onClose }) {
   return (
     <Drawer open={open} onClose={onClose} title={`Your Favorites (${sorted.length})`}>
       {sorted.length === 0 ? (
-        <p className="text-sm text-umd-body py-2">No favorites yet. Tap the heart next to any menu item to add it.</p>
+        <div className="h-full flex flex-col items-center justify-center text-center px-4">
+          <div className="text-3xl mb-2">🤍</div>
+          <p className="text-sm text-umd-body max-w-[220px]">No favorites yet. Tap the heart next to any menu item to add it.</p>
+        </div>
       ) : (
         <div className="divide-y divide-umd-gray-light">
           {sorted.map((name) => (
@@ -494,6 +513,10 @@ export default function MenuPage() {
   useEffect(() => {
     patchMenu({ favoritesCount: favorites.size });
   }, [favorites, patchMenu]);
+
+  useEffect(() => {
+    scheduleFavoriteNotifications({ data, favorites, date, isToday: date === today });
+  }, [data, favorites, date, today]);
 
   const refreshFavorites = useCallback(async () => {
     if (!user) return;
@@ -873,7 +896,7 @@ export default function MenuPage() {
         onRemove={removeFav}
         onClose={() => setShowFavManager(false)}
       />
-      <LegendDrawer open={legendOpen} onClose={() => setLegendOpen(false)} />
+      <LegendModal open={legendOpen} onClose={() => setLegendOpen(false)} />
     </div>
   );
 }

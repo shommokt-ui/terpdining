@@ -341,7 +341,6 @@ export default function TrackerPage() {
           <DailySummary totals={totals} goals={goals} />
           {logs.length === 0 && (
             <div className="text-center py-4">
-              <div className="text-3xl mb-1">🐢</div>
               <p className="text-sm text-umd-body">
                 Nothing logged {isToday ? 'today' : 'this day'} yet. Search a food under any meal below to
                 start tracking.

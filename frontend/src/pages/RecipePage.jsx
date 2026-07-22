@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { apiPost, apiGet, apiDelete } from '../api';
 import ChatMessage from '../components/ChatMessage';
+import Logo from '../components/Logo';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useNavigationState } from '../context/NavigationStateContext';
@@ -207,7 +208,6 @@ export default function RecipePage() {
           ))}
           {sessions.length === 0 && (
             <div className="p-4 text-center">
-              <div className="text-2xl mb-1">🐢</div>
               <div className="text-xs text-umd-body">No recipe history yet. Your past sessions will show up here.</div>
             </div>
           )}
@@ -311,8 +311,8 @@ export default function RecipePage() {
 
           {loading && (
             <div className="flex justify-start mb-3">
-              <div className="w-8 h-8 rounded-full bg-umd-gold flex items-center justify-center text-base mr-2 mt-1 shrink-0">
-                🐢
+              <div className="w-8 h-8 rounded-full bg-umd-gold flex items-center justify-center mr-2 mt-1 shrink-0">
+                <Logo className="w-5 h-5" />
               </div>
               <div className="umd-card rounded-2xl rounded-bl-md px-4 py-3">
                 <div className="flex gap-1">

@@ -1,4 +1,5 @@
 import ReactMarkdown from 'react-markdown';
+import Logo from './Logo';
 
 export default function ChatMessage({ role, content }) {
   const isUser = role === 'user';
@@ -6,8 +7,8 @@ export default function ChatMessage({ role, content }) {
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-3`}>
       {!isUser && (
-        <div className="w-8 h-8 rounded-full bg-umd-gold flex items-center justify-center text-base mr-2 mt-1 shrink-0">
-          🐢
+        <div className="w-8 h-8 rounded-full bg-umd-gold flex items-center justify-center mr-2 mt-1 shrink-0">
+          <Logo className="w-5 h-5" />
         </div>
       )}
       <div
