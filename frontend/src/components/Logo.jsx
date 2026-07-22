@@ -1,8 +1,13 @@
+import { useId } from 'react';
+
 export default function Logo({ className = 'w-8 h-8' }) {
+  // Unique per instance: a shared id breaks the gradient fill when another copy of the
+  // logo (e.g. inside a hidden responsive panel) is first in the DOM.
+  const gradId = useId();
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
       <defs>
-        <linearGradient id="terpdining-logo-grad" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#e21833" />
           <stop offset="100%" stopColor="#b5132a" />
         </linearGradient>
@@ -10,7 +15,7 @@ export default function Logo({ className = 'w-8 h-8' }) {
       {/* turtle-shell scute badge */}
       <polygon
         points="12,1 21.53,6.5 21.53,17.5 12,23 2.47,17.5 2.47,6.5"
-        fill="url(#terpdining-logo-grad)"
+        fill={`url(#${gradId})`}
         stroke="#ffd200"
         strokeWidth="1"
         strokeLinejoin="round"
