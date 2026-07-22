@@ -1,10 +1,9 @@
 # 🐢 TerpDining
 
 UMD dining hall app. Check menus, track macros, and get AI recipe ideas from
-what's actually on the menu today — on web, iOS, and Android.
-
-> Unofficial student project — not affiliated with or endorsed by the
-> University of Maryland.
+what's actually on the menu today, on web, iOS, and Android. Unofficial
+student project, not affiliated with or endorsed by the University of
+Maryland.
 
 ## Screenshots
 
@@ -14,10 +13,10 @@ what's actually on the menu today — on web, iOS, and Android.
 
 ## What it does
 
-- **Menu** — every dining hall by meal and station, with dietary badges (vegan, halal, allergens) and a date picker.
-- **Favorites** — heart an item to get notified when it's back on the menu.
-- **Recipes** — AI suggests dishes assembled from what's actually available that day.
-- **Tracker** — log food with realistic portions, see daily macros on a donut chart, goals synced across devices.
+- **Menu**: every dining hall by meal and station, with dietary badges (vegan, halal, allergens) and a date picker.
+- **Favorites**: heart an item to get notified when it's back on the menu.
+- **Recipes**: AI suggests dishes assembled from what's actually available that day.
+- **Tracker**: log food with realistic portions, see daily macros on a donut chart, goals synced across devices.
 
 ## Stack
 
