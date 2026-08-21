@@ -124,7 +124,7 @@ function ItemBadges({ tags }) {
   );
 }
 
-function ItemRow({ item, isFav, onToggleFav, summary, onOpenReviews }) {
+function ItemRow({ item, hall, isFav, onToggleFav, summary, onOpenReviews }) {
   return (
     <div className="px-4 py-1.5 flex items-center justify-between gap-2">
       <div className="flex items-center gap-2 min-w-0">
@@ -138,7 +138,7 @@ function ItemRow({ item, isFav, onToggleFav, summary, onOpenReviews }) {
           </svg>
         </button>
         <button
-          onClick={() => onOpenReviews(item)}
+          onClick={() => onOpenReviews(item, hall)}
           className="min-w-0 text-left group"
           title="See reviews"
         >
@@ -156,7 +156,7 @@ function ItemRow({ item, isFav, onToggleFav, summary, onOpenReviews }) {
   );
 }
 
-function StationGroup({ station, items, favorites, onToggleFav, expandSignal, summaries, onOpenReviews }) {
+function StationGroup({ station, hall, items, favorites, onToggleFav, expandSignal, summaries, onOpenReviews }) {
   const [open, setOpen] = useState(true);
   const sorted = useMemo(() => [...items].sort((a, b) => a.name.localeCompare(b.name)), [items]);
 
@@ -184,8 +184,8 @@ function StationGroup({ station, items, favorites, onToggleFav, expandSignal, su
       {open && (
         <div className="divide-y divide-umd-gray-light">
           {sorted.map((item, i) => (
-            <ItemRow key={i} item={item} isFav={favorites.has(item.name)} onToggleFav={onToggleFav}
-              summary={summaries?.[item.food_item_id]} onOpenReviews={onOpenReviews} />
+            <ItemRow key={i} item={item} hall={hall} isFav={favorites.has(item.name)} onToggleFav={onToggleFav}
+              summary={summaries?.[hall]?.[item.food_item_id]} onOpenReviews={onOpenReviews} />
           ))}
         </div>
       )}
@@ -413,13 +413,13 @@ function SearchResults({ data, query, includeTags, excludeTags, favorites, onTog
                     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                   </svg>
                 </button>
-                <button onClick={() => onOpenReviews(m.item)} className="min-w-0 text-left group">
+                <button onClick={() => onOpenReviews(m.item, m.hall)} className="min-w-0 text-left group">
                   <span className="block text-sm text-umd-black truncate group-hover:text-umd-red group-hover:underline">{m.item.name}</span>
-                  {summaries?.[m.item.food_item_id]?.count > 0 && (
+                  {summaries?.[m.hall]?.[m.item.food_item_id]?.count > 0 && (
                     <span className="flex items-center gap-1 mt-0.5">
-                      <StarRating value={summaries[m.item.food_item_id].average} size="sm" />
+                      <StarRating value={summaries[m.hall][m.item.food_item_id].average} size="sm" />
                       <span className="text-[10px] text-umd-gray-dark">
-                        {summaries[m.item.food_item_id].average} ({summaries[m.item.food_item_id].count})
+                        {summaries[m.hall][m.item.food_item_id].average} ({summaries[m.hall][m.item.food_item_id].count})
                       </span>
                     </span>
                   )}
@@ -548,6 +548,8 @@ export default function MenuPage() {
   const [summaries, setSummaries] = useState({});
   const [selectedDish, setSelectedDish] = useState(null);
 
+  const openReviews = useCallback((item, hall) => setSelectedDish({ item, hall }), []);
+
   useEffect(() => {
     patchMenu({ favoritesCount: favorites.size });
   }, [favorites, patchMenu]);
@@ -653,26 +655,40 @@ export default function MenuPage() {
 
   useEffect(() => { fetchMenu(); }, [fetchMenu]);
 
-  const allItemIds = useMemo(() => {
-    if (!data) return [];
-    const ids = new Set();
-    for (const meals of Object.values(data.halls)) {
+  // Ratings are scoped per dining hall (the same dish id can be reviewed
+  // separately at each hall), so collect item ids grouped by hall.
+  const itemIdsByHall = useMemo(() => {
+    const map = {};
+    if (!data) return map;
+    for (const [hall, meals] of Object.entries(data.halls)) {
+      const ids = new Set();
       for (const stations of Object.values(meals)) {
         for (const items of Object.values(stations)) {
           for (const it of items) if (it.food_item_id != null) ids.add(it.food_item_id);
         }
       }
+      map[hall] = [...ids];
     }
-    return [...ids];
+    return map;
   }, [data]);
 
   const refreshSummaries = useCallback(async () => {
-    if (allItemIds.length === 0) { setSummaries({}); return; }
+    const halls = Object.keys(itemIdsByHall);
+    if (halls.length === 0) { setSummaries({}); return; }
     try {
-      const resp = await apiGet(`/api/reviews/summary?ids=${allItemIds.join(',')}`);
-      setSummaries(resp || {});
+      const entries = await Promise.all(
+        halls.map(async (hall) => {
+          const ids = itemIdsByHall[hall];
+          if (!ids.length) return [hall, {}];
+          const resp = await apiGet(
+            `/api/reviews/summary?ids=${ids.join(',')}&hall=${encodeURIComponent(hall)}`,
+          );
+          return [hall, resp || {}];
+        }),
+      );
+      setSummaries(Object.fromEntries(entries));
     } catch { /* ignore */ }
-  }, [allItemIds]);
+  }, [itemIdsByHall]);
 
   useEffect(() => { refreshSummaries(); }, [refreshSummaries]);
 
@@ -897,7 +913,7 @@ export default function MenuPage() {
                   favorites={favorites}
                   onToggleFav={toggleFav}
                   summaries={summaries}
-                  onOpenReviews={setSelectedDish}
+                  onOpenReviews={openReviews}
                 />
               ) : (
                 <>
@@ -954,7 +970,7 @@ export default function MenuPage() {
                     <div className="columns-1 md:columns-2 xl:columns-3 gap-3">
                       {Object.keys(filteredStations).sort().map((station) => (
                         <div key={station} className="break-inside-avoid mb-3">
-                          <StationGroup station={station} items={filteredStations[station]} favorites={favorites} onToggleFav={toggleFav} expandSignal={expandSignal} summaries={summaries} onOpenReviews={setSelectedDish} />
+                          <StationGroup station={station} hall={activeHall} items={filteredStations[station]} favorites={favorites} onToggleFav={toggleFav} expandSignal={expandSignal} summaries={summaries} onOpenReviews={openReviews} />
                         </div>
                       ))}
                     </div>
@@ -977,8 +993,9 @@ export default function MenuPage() {
 
       <DishReviewsModal
         open={selectedDish != null}
-        foodItemId={selectedDish?.food_item_id}
-        foodName={selectedDish?.name}
+        foodItemId={selectedDish?.item?.food_item_id}
+        foodName={selectedDish?.item?.name}
+        hall={selectedDish?.hall}
         onClose={() => setSelectedDish(null)}
         onChanged={refreshSummaries}
       />

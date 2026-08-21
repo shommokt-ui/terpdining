@@ -20,7 +20,7 @@ function formatDate(iso) {
   }
 }
 
-export default function DishReviewsModal({ open, foodItemId, foodName, onClose, onChanged }) {
+export default function DishReviewsModal({ open, foodItemId, foodName, hall, onClose, onChanged }) {
   const { user } = useAuth();
   const toast = useToast();
   const [meta, setMeta] = useState({ average: null, count: 0 });
@@ -37,9 +37,10 @@ export default function DishReviewsModal({ open, foodItemId, foodName, onClose, 
   const fetchPage = useCallback(
     async (offset, sortBy) => {
       const params = new URLSearchParams({ sort: sortBy, limit: String(PAGE_SIZE), offset: String(offset) });
+      if (hall) params.set('hall', hall);
       return apiGet(`/api/reviews/${foodItemId}?${params.toString()}`);
     },
-    [foodItemId],
+    [foodItemId, hall],
   );
 
   const loadFirst = useCallback(
@@ -110,6 +111,7 @@ export default function DishReviewsModal({ open, foodItemId, foodName, onClose, 
     try {
       await apiPost('/api/reviews', {
         food_item_id: foodItemId,
+        hall,
         rating,
         comment: comment.trim() || null,
         name: name.trim() || null,
@@ -134,6 +136,9 @@ export default function DishReviewsModal({ open, foodItemId, foodName, onClose, 
         <div className="flex items-start justify-between px-5 py-4 border-b border-umd-gray gap-3">
           <div className="min-w-0">
             <h2 className="text-base font-bold text-umd-black truncate">{foodName}</h2>
+            {hall && (
+              <div className="text-[11px] text-umd-gray-dark truncate">at {hall.replace(' Dining Hall', '')}</div>
+            )}
             {!loading && (
               <div className="flex items-center gap-2 mt-1">
                 {meta.count > 0 ? (

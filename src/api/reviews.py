@@ -77,6 +77,17 @@ def _clean(text: str | None, limit: int) -> str | None:
     return text[:limit]
 
 
+def _resolve_hall_id(conn, hall: str | None) -> int | None:
+    """Map a dining-hall name to its id. Returns None when unknown/blank so
+    callers can decide whether that's an error (write) or an empty set (read)."""
+    if not hall or not hall.strip():
+        return None
+    row = conn.execute(
+        "SELECT id FROM dining_halls WHERE name = ?", (hall.strip(),)
+    ).fetchone()
+    return row["id"] if row else None
+
+
 def _check_rate_limit(ip: str, dup_key: tuple) -> None:
     now = time.time()
 
@@ -105,6 +116,7 @@ def _check_rate_limit(ip: str, dup_key: tuple) -> None:
 
 class ReviewIn(BaseModel):
     food_item_id: int
+    hall: str = Field(..., max_length=100)
     rating: int = Field(..., ge=1, le=5)
     comment: str | None = Field(default=None, max_length=COMMENT_MAX)
     name: str | None = Field(default=None, max_length=NAME_MAX)
@@ -132,8 +144,15 @@ class SummaryOut(BaseModel):
 
 
 @router.get("/summary", response_model=dict[str, SummaryOut])
-def reviews_summary(ids: str = Query(..., description="Comma-separated food_item_ids"), conn=Depends(get_db)):
-    """Batch average + count for many dishes, so menu rows can show stars."""
+def reviews_summary(
+    ids: str = Query(..., description="Comma-separated food_item_ids"),
+    hall: str | None = Query(None, description="Scope to a single dining hall by name"),
+    conn=Depends(get_db),
+):
+    """Batch average + count for many dishes, so menu rows can show stars.
+
+    When ``hall`` is given, ratings are scoped to that hall (dishes with the
+    same id are reviewed separately per hall)."""
     id_list: list[int] = []
     for part in ids.split(","):
         part = part.strip()
@@ -146,15 +165,27 @@ def reviews_summary(ids: str = Query(..., description="Comma-separated food_item
     if not id_list:
         return {}
 
+    hall_id = None
+    if hall is not None:
+        hall_id = _resolve_hall_id(conn, hall)
+        if hall_id is None:
+            return {}
+
     placeholders = ",".join("?" for _ in id_list)
+    params: list = list(id_list)
+    hall_clause = ""
+    if hall_id is not None:
+        hall_clause = "AND hall_id = ?"
+        params.append(hall_id)
+
     rows = conn.execute(
         f"""\
         SELECT food_item_id, AVG(rating) AS avg_rating, COUNT(*) AS cnt
         FROM reviews
-        WHERE food_item_id IN ({placeholders})
+        WHERE food_item_id IN ({placeholders}) {hall_clause}
         GROUP BY food_item_id
         """,
-        tuple(id_list),
+        tuple(params),
     ).fetchall()
     return {
         str(r["food_item_id"]): SummaryOut(average=round(float(r["avg_rating"]), 2), count=r["cnt"])
@@ -165,6 +196,7 @@ def reviews_summary(ids: str = Query(..., description="Comma-separated food_item
 @router.get("/{food_item_id}", response_model=ReviewListOut)
 def list_reviews(
     food_item_id: int,
+    hall: str | None = Query(None, description="Scope to a single dining hall by name"),
     sort: str = Query("newest"),
     limit: int = Query(PAGE_DEFAULT, ge=1, le=PAGE_MAX),
     offset: int = Query(0, ge=0),
@@ -172,9 +204,20 @@ def list_reviews(
 ):
     order_by = _SORTS.get(sort, _SORTS["newest"])
 
+    where = "food_item_id = ?"
+    scope: list = [food_item_id]
+    if hall is not None:
+        hall_id = _resolve_hall_id(conn, hall)
+        if hall_id is None:
+            return ReviewListOut(
+                food_item_id=food_item_id, average=None, count=0, reviews=[], has_more=False
+            )
+        where += " AND hall_id = ?"
+        scope.append(hall_id)
+
     agg = conn.execute(
-        "SELECT AVG(rating) AS avg_rating, COUNT(*) AS cnt FROM reviews WHERE food_item_id = ?",
-        (food_item_id,),
+        f"SELECT AVG(rating) AS avg_rating, COUNT(*) AS cnt FROM reviews WHERE {where}",
+        tuple(scope),
     ).fetchone()
     count = agg["cnt"] or 0
     average = round(float(agg["avg_rating"]), 2) if count else None
@@ -183,11 +226,11 @@ def list_reviews(
         f"""\
         SELECT id, rating, comment, author_name, created_at
         FROM reviews
-        WHERE food_item_id = ?
+        WHERE {where}
         ORDER BY {order_by}
         LIMIT ? OFFSET ?
         """,
-        (food_item_id, limit, offset),
+        tuple(scope) + (limit, offset),
     ).fetchall()
 
     reviews = [
@@ -222,6 +265,10 @@ def create_review(
     if not exists:
         raise HTTPException(status_code=404, detail="Dish not found")
 
+    hall_id = _resolve_hall_id(conn, body.hall)
+    if hall_id is None:
+        raise HTTPException(status_code=400, detail="Unknown dining hall")
+
     name = _censor(_clean(body.name, NAME_MAX))
     if not name and user:
         row = conn.execute(
@@ -233,16 +280,16 @@ def create_review(
     comment = _censor(_clean(body.comment, COMMENT_MAX))
 
     ip = _client_ip(request)
-    dup_key = (ip, body.food_item_id, body.rating, (comment or "").lower())
+    dup_key = (ip, body.food_item_id, hall_id, body.rating, (comment or "").lower())
     _check_rate_limit(ip, dup_key)
 
     now = datetime.now(timezone.utc).isoformat()
     row = conn.execute(
         """\
-        INSERT INTO reviews (food_item_id, user_id, author_name, rating, comment, created_at)
-        VALUES (?, ?, ?, ?, ?, ?) RETURNING id
+        INSERT INTO reviews (food_item_id, hall_id, user_id, author_name, rating, comment, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id
         """,
-        (body.food_item_id, user["id"] if user else None, name, body.rating, comment, now),
+        (body.food_item_id, hall_id, user["id"] if user else None, name, body.rating, comment, now),
     ).fetchone()
     conn.commit()
 

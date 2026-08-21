@@ -173,6 +173,7 @@ CREATE INDEX IF NOT EXISTS idx_password_resets_user
 CREATE TABLE IF NOT EXISTS reviews (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     food_item_id INTEGER NOT NULL REFERENCES food_items(id) ON DELETE CASCADE,
+    hall_id      INTEGER REFERENCES dining_halls(id) ON DELETE CASCADE,
     user_id      INTEGER REFERENCES users(id) ON DELETE SET NULL,
     author_name  TEXT,
     rating       INTEGER NOT NULL,
@@ -182,6 +183,9 @@ CREATE TABLE IF NOT EXISTS reviews (
 
 CREATE INDEX IF NOT EXISTS idx_reviews_food
     ON reviews (food_item_id);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_food_hall
+    ON reviews (food_item_id, hall_id);
 """
 
 # Same schema in Postgres dialect: identity columns instead of
@@ -329,6 +333,7 @@ CREATE INDEX IF NOT EXISTS idx_password_resets_user
 CREATE TABLE IF NOT EXISTS reviews (
     id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     food_item_id BIGINT NOT NULL REFERENCES food_items(id) ON DELETE CASCADE,
+    hall_id      BIGINT REFERENCES dining_halls(id) ON DELETE CASCADE,
     user_id      BIGINT REFERENCES users(id) ON DELETE SET NULL,
     author_name  TEXT,
     rating       INTEGER NOT NULL,
@@ -338,6 +343,9 @@ CREATE TABLE IF NOT EXISTS reviews (
 
 CREATE INDEX IF NOT EXISTS idx_reviews_food
     ON reviews (food_item_id);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_food_hall
+    ON reviews (food_item_id, hall_id);
 """
 
 
@@ -419,14 +427,15 @@ def _ensure_portion_label_column(conn) -> None:
 
 
 def _migrate_reviews_table(conn) -> None:
-    """Migrate the first-gen account-bound reviews table to the open,
-    append-only shape.
+    """Migrate older reviews tables to the current shape.
 
-    The original table had ``user_id NOT NULL`` + ``UNIQUE (user_id,
-    food_item_id)``, which SQLite cannot alter in place. Since reviews were
-    brand new, we simply drop the outdated table (identified by the missing
-    ``author_name`` column) and let the schema recreate it. Any existing rows
-    are discarded.
+    Reviews evolved twice: first from an account-bound, one-per-user table
+    (no ``author_name``) to open/append-only, then to per-hall scoping (adding
+    ``hall_id``). SQLite can't add these constraints in place, so we detect an
+    outdated table by the missing ``hall_id`` column (which also implies the
+    even older ``author_name``-less shape) and drop it so the schema recreates
+    it fresh. Any existing review rows are discarded — acceptable while the
+    feature is new.
     """
     if is_postgres(conn):
         exists = conn.execute(
@@ -437,7 +446,7 @@ def _migrate_reviews_table(conn) -> None:
             return
         has_col = conn.execute(
             "SELECT 1 FROM information_schema.columns "
-            "WHERE table_name = 'reviews' AND column_name = 'author_name'"
+            "WHERE table_name = 'reviews' AND column_name = 'hall_id'"
         ).fetchone()
         if not has_col:
             conn.execute("DROP TABLE reviews")
@@ -450,6 +459,6 @@ def _migrate_reviews_table(conn) -> None:
     if not table:
         return
     cols = [row[1] for row in conn.execute("PRAGMA table_info(reviews)").fetchall()]
-    if "author_name" not in cols:
+    if "hall_id" not in cols:
         conn.execute("DROP TABLE reviews")
         conn.commit()
