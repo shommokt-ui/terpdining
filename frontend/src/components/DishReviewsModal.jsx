@@ -4,6 +4,14 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import StarRating from './StarRating';
 
+const PAGE_SIZE = 10;
+
+const SORTS = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'highest', label: 'Highest rated' },
+  { value: 'lowest', label: 'Lowest rated' },
+];
+
 function formatDate(iso) {
   try {
     return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -15,33 +23,67 @@ function formatDate(iso) {
 export default function DishReviewsModal({ open, foodItemId, foodName, onClose, onChanged }) {
   const { user } = useAuth();
   const toast = useToast();
-  const [data, setData] = useState(null);
+  const [meta, setMeta] = useState({ average: null, count: 0 });
+  const [reviews, setReviews] = useState([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [sort, setSort] = useState('newest');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    if (foodItemId == null) return;
-    setLoading(true);
+  const fetchPage = useCallback(
+    async (offset, sortBy) => {
+      const params = new URLSearchParams({ sort: sortBy, limit: String(PAGE_SIZE), offset: String(offset) });
+      return apiGet(`/api/reviews/${foodItemId}?${params.toString()}`);
+    },
+    [foodItemId],
+  );
+
+  const loadFirst = useCallback(
+    async (sortBy) => {
+      if (foodItemId == null) return;
+      setLoading(true);
+      try {
+        const resp = await fetchPage(0, sortBy);
+        setMeta({ average: resp.average, count: resp.count });
+        setReviews(resp.reviews);
+        setHasMore(resp.has_more);
+      } catch {
+        setMeta({ average: null, count: 0 });
+        setReviews([]);
+        setHasMore(false);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [foodItemId, fetchPage],
+  );
+
+  async function loadMore() {
+    setLoadingMore(true);
     try {
-      const resp = await apiGet(`/api/reviews/${foodItemId}`);
-      setData(resp);
+      const resp = await fetchPage(reviews.length, sort);
+      setReviews((prev) => [...prev, ...resp.reviews]);
+      setHasMore(resp.has_more);
+      setMeta({ average: resp.average, count: resp.count });
     } catch {
-      setData(null);
+      // keep what we have
     } finally {
-      setLoading(false);
+      setLoadingMore(false);
     }
-  }, [foodItemId]);
+  }
 
   useEffect(() => {
     if (!open) return;
     setRating(0);
     setComment('');
     setName(user ? user.email.split('@')[0] : '');
-    load();
-  }, [open, load, user]);
+    setSort('newest');
+    loadFirst('newest');
+  }, [open, foodItemId, user, loadFirst]);
 
   useEffect(() => {
     if (!open) return;
@@ -51,6 +93,12 @@ export default function DishReviewsModal({ open, foodItemId, foodName, onClose, 
   }, [open, onClose]);
 
   if (!open) return null;
+
+  function handleSortChange(e) {
+    const next = e.target.value;
+    setSort(next);
+    loadFirst(next);
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -69,7 +117,8 @@ export default function DishReviewsModal({ open, foodItemId, foodName, onClose, 
       toast('Review posted!', 'info');
       setRating(0);
       setComment('');
-      await load();
+      setSort('newest');
+      await loadFirst('newest');
       onChanged?.();
     } catch (err) {
       toast(err.message || "Couldn't post your review.");
@@ -78,8 +127,6 @@ export default function DishReviewsModal({ open, foodItemId, foodName, onClose, 
     }
   }
 
-  const reviews = data?.reviews || [];
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
@@ -87,13 +134,13 @@ export default function DishReviewsModal({ open, foodItemId, foodName, onClose, 
         <div className="flex items-start justify-between px-5 py-4 border-b border-umd-gray gap-3">
           <div className="min-w-0">
             <h2 className="text-base font-bold text-umd-black truncate">{foodName}</h2>
-            {!loading && data && (
+            {!loading && (
               <div className="flex items-center gap-2 mt-1">
-                {data.count > 0 ? (
+                {meta.count > 0 ? (
                   <>
-                    <StarRating value={data.average} size="sm" />
+                    <StarRating value={meta.average} size="sm" />
                     <span className="text-xs text-umd-body">
-                      {data.average} · {data.count} review{data.count !== 1 ? 's' : ''}
+                      {meta.average} · {meta.count} review{meta.count !== 1 ? 's' : ''}
                     </span>
                   </>
                 ) : (
@@ -110,58 +157,87 @@ export default function DishReviewsModal({ open, foodItemId, foodName, onClose, 
         </div>
 
         <div className="overflow-y-auto px-5 py-4 space-y-5">
+          <form onSubmit={handleSubmit} className="umd-card rounded-xl p-4 space-y-3">
+            <div className="text-sm font-semibold text-umd-black">Write a review</div>
+            <StarRating value={rating} onChange={setRating} size="lg" />
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={40}
+              placeholder="Your name (optional)"
+              className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
+            />
+            <div>
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                rows={3}
+                maxLength={1000}
+                placeholder="How was it? (optional)"
+                className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent resize-none"
+              />
+              <div className="text-[11px] text-umd-gray-dark text-right mt-0.5">{comment.length}/1000</div>
+            </div>
+            <button
+              type="submit"
+              disabled={saving}
+              className="bg-umd-red hover:bg-umd-red-dark text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
+            >
+              {saving ? 'Posting...' : 'Post review'}
+            </button>
+          </form>
+
           {loading ? (
             <div className="space-y-3">
               <div className="skeleton h-5 w-32" />
               <div className="skeleton h-16 w-full" />
             </div>
           ) : (
-            <>
-              <form onSubmit={handleSubmit} className="umd-card rounded-xl p-4 space-y-3">
-                <div className="text-sm font-semibold text-umd-black">Write a review</div>
-                <StarRating value={rating} onChange={setRating} size="lg" />
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  maxLength={40}
-                  placeholder="Your name (optional)"
-                  className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
-                />
-                <textarea
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  rows={3}
-                  maxLength={1000}
-                  placeholder="How was it? (optional)"
-                  className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent resize-none"
-                />
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="bg-umd-red hover:bg-umd-red-dark text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
-                >
-                  {saving ? 'Posting...' : 'Post review'}
-                </button>
-              </form>
+            <div className="space-y-3">
+              {meta.count > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-umd-black">
+                    {meta.count} review{meta.count !== 1 ? 's' : ''}
+                  </span>
+                  <select
+                    value={sort}
+                    onChange={handleSortChange}
+                    className="bg-white dark:bg-[#1c1c1c] text-umd-body text-xs border border-umd-gray rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-umd-red"
+                    aria-label="Sort reviews"
+                  >
+                    {SORTS.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
-              <div className="space-y-3">
-                {reviews.length === 0 ? (
-                  <p className="text-sm text-umd-body text-center py-4">Be the first to review this dish!</p>
-                ) : (
-                  reviews.map((r) => (
-                    <div key={r.id} className="border-b border-umd-gray-light last:border-b-0 pb-3 last:pb-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-semibold text-umd-black truncate">{r.author}</span>
-                        <span className="text-[11px] text-umd-gray-dark shrink-0">{formatDate(r.created_at)}</span>
-                      </div>
-                      <StarRating value={r.rating} size="sm" className="mt-0.5" />
-                      {r.comment && <p className="text-sm text-umd-body mt-1 whitespace-pre-wrap">{r.comment}</p>}
+              {reviews.length === 0 ? (
+                <p className="text-sm text-umd-body text-center py-4">Be the first to review this dish!</p>
+              ) : (
+                reviews.map((r) => (
+                  <div key={r.id} className="border-b border-umd-gray-light last:border-b-0 pb-3 last:pb-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold text-umd-black truncate">{r.author}</span>
+                      <span className="text-[11px] text-umd-gray-dark shrink-0">{formatDate(r.created_at)}</span>
                     </div>
-                  ))
-                )}
-              </div>
-            </>
+                    <StarRating value={r.rating} size="sm" className="mt-0.5" />
+                    {r.comment && <p className="text-sm text-umd-body mt-1 whitespace-pre-wrap">{r.comment}</p>}
+                  </div>
+                ))
+              )}
+
+              {hasMore && (
+                <button
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="w-full text-sm font-semibold text-umd-red hover:bg-umd-gray-light rounded-lg py-2 transition-colors disabled:opacity-50"
+                >
+                  {loadingMore ? 'Loading...' : 'Show more reviews'}
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
