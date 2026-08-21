@@ -1,16 +1,19 @@
 import { useState } from 'react';
 
-function Star({ fill, className }) {
+const STAR_PATH =
+  'M11.48 3.5l2.02 4.09 4.51.66c.79.11 1.1 1.08.53 1.63l-3.26 3.18.77 4.49c.13.78-.69 1.38-1.39 1.01L12 17.9l-4.03 2.12c-.7.37-1.52-.23-1.39-1.01l.77-4.49-3.26-3.18c-.57-.55-.26-1.52.53-1.63l4.51-.66L11.48 3.5z';
+
+function Star({ fill, sizeClass }) {
   // fill: 0..1 fraction of the star to paint
   const pct = Math.max(0, Math.min(1, fill)) * 100;
   return (
-    <span className={`relative inline-block ${className}`}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-full h-full text-umd-gray-dark">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.5l2.02 4.09 4.51.66c.79.11 1.1 1.08.53 1.63l-3.26 3.18.77 4.49c.13.78-.69 1.38-1.39 1.01L12 17.9l-4.03 2.12c-.7.37-1.52-.23-1.39-1.01l.77-4.49-3.26-3.18c-.57-.55-.26-1.52.53-1.63l4.51-.66L11.48 3.5z" />
+    <span className={`relative inline-block shrink-0 ${sizeClass}`}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className={`${sizeClass} block text-umd-gray-dark`}>
+        <path strokeLinecap="round" strokeLinejoin="round" d={STAR_PATH} />
       </svg>
-      <span className="absolute inset-0 overflow-hidden" style={{ width: `${pct}%` }}>
-        <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full text-amber-400" style={{ minWidth: '1em' }}>
-          <path d="M11.48 3.5l2.02 4.09 4.51.66c.79.11 1.1 1.08.53 1.63l-3.26 3.18.77 4.49c.13.78-.69 1.38-1.39 1.01L12 17.9l-4.03 2.12c-.7.37-1.52-.23-1.39-1.01l.77-4.49-3.26-3.18c-.57-.55-.26-1.52.53-1.63l4.51-.66L11.48 3.5z" />
+      <span className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${pct}%` }}>
+        <svg viewBox="0 0 24 24" fill="currentColor" className={`${sizeClass} block max-w-none text-amber-400`}>
+          <path d={STAR_PATH} />
         </svg>
       </span>
     </span>
@@ -32,7 +35,7 @@ export default function StarRating({ value = 0, onChange, size = 'md', className
     return (
       <span className={`inline-flex items-center gap-0.5 ${className}`} aria-label={`${value} out of 5 stars`}>
         {[1, 2, 3, 4, 5].map((i) => (
-          <Star key={i} fill={shown - (i - 1)} className={sizeClass} />
+          <Star key={i} fill={shown - (i - 1)} sizeClass={sizeClass} />
         ))}
       </span>
     );
@@ -52,7 +55,7 @@ export default function StarRating({ value = 0, onChange, size = 'md', className
           onClick={() => onChange(i)}
           className="p-0.5 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-umd-red rounded"
         >
-          <Star fill={shown - (i - 1)} className={sizeClass} />
+          <Star fill={shown - (i - 1)} sizeClass={sizeClass} />
         </button>
       ))}
     </span>
