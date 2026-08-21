@@ -17,6 +17,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 1 week
 
 _bearer = HTTPBearer()
+_bearer_optional = HTTPBearer(auto_error=False)
 
 
 def get_db():
@@ -51,4 +52,29 @@ def get_current_user(
     row = conn.execute("SELECT id, email FROM users WHERE id = ?", (user_id,)).fetchone()
     if row is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    return {"id": row["id"], "email": row["email"]}
+
+
+def get_current_user_optional(
+    creds: HTTPAuthorizationCredentials | None = Depends(_bearer_optional),
+    conn=Depends(get_db),
+) -> dict | None:
+    """Like get_current_user, but returns None instead of raising when the
+    token is missing or invalid. Used by endpoints that are readable by guests
+    but want to know the caller's identity when present.
+    """
+    if creds is None:
+        return None
+    try:
+        payload = jwt.decode(creds.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        sub = payload.get("sub")
+        if sub is None:
+            return None
+        user_id = int(sub)
+    except (JWTError, ValueError):
+        return None
+
+    row = conn.execute("SELECT id, email FROM users WHERE id = ?", (user_id,)).fetchone()
+    if row is None:
+        return None
     return {"id": row["id"], "email": row["email"]}

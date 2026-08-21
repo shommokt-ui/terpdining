@@ -43,6 +43,7 @@ from src.api.favorites import router as favorites_router
 from src.api.menu_browse import router as menu_router
 from src.api.nutrition_search import router as nutrition_router
 from src.api.recipe import router as recipe_router
+from src.api.reviews import router as reviews_router
 from src.api.tracker import router as tracker_router
 from src.db.models import get_connection, init_db
 
@@ -77,6 +78,7 @@ app.include_router(favorites_router)
 app.include_router(menu_router)
 app.include_router(nutrition_router)
 app.include_router(recipe_router)
+app.include_router(reviews_router)
 app.include_router(tracker_router)
 
 _scheduler = BackgroundScheduler()

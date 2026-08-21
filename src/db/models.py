@@ -169,6 +169,20 @@ CREATE TABLE IF NOT EXISTS password_resets (
 
 CREATE INDEX IF NOT EXISTS idx_password_resets_user
     ON password_resets (user_id);
+
+CREATE TABLE IF NOT EXISTS reviews (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    food_item_id INTEGER NOT NULL REFERENCES food_items(id) ON DELETE CASCADE,
+    rating       INTEGER NOT NULL,
+    comment      TEXT,
+    created_at   TEXT    NOT NULL,
+    updated_at   TEXT    NOT NULL,
+    UNIQUE (user_id, food_item_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_food
+    ON reviews (food_item_id);
 """
 
 # Same schema in Postgres dialect: identity columns instead of
@@ -312,6 +326,20 @@ CREATE TABLE IF NOT EXISTS password_resets (
 
 CREATE INDEX IF NOT EXISTS idx_password_resets_user
     ON password_resets (user_id);
+
+CREATE TABLE IF NOT EXISTS reviews (
+    id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id      BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    food_item_id BIGINT NOT NULL REFERENCES food_items(id) ON DELETE CASCADE,
+    rating       INTEGER NOT NULL,
+    comment      TEXT,
+    created_at   TEXT   NOT NULL,
+    updated_at   TEXT   NOT NULL,
+    UNIQUE (user_id, food_item_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_food
+    ON reviews (food_item_id);
 """
 
 

@@ -5,6 +5,8 @@ import { useNavigationState } from '../context/NavigationStateContext';
 import { useToast } from '../context/ToastContext';
 import { MEAL_HOURS } from '../mealHours';
 import { getPreferredHall } from '../preferences';
+import StarRating from '../components/StarRating';
+import DishReviewsModal from '../components/DishReviewsModal';
 import {
   scheduleUpcomingFavoriteNotifications,
   cancelPendingFavoriteNotifications,
@@ -122,7 +124,7 @@ function ItemBadges({ tags }) {
   );
 }
 
-function ItemRow({ item, isFav, onToggleFav }) {
+function ItemRow({ item, isFav, onToggleFav, summary, onOpenReviews }) {
   return (
     <div className="px-4 py-1.5 flex items-center justify-between gap-2">
       <div className="flex items-center gap-2 min-w-0">
@@ -135,14 +137,26 @@ function ItemRow({ item, isFav, onToggleFav }) {
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
           </svg>
         </button>
-        <span className="text-sm text-umd-black truncate">{item.name}</span>
+        <button
+          onClick={() => onOpenReviews(item)}
+          className="min-w-0 text-left group flex items-center gap-1.5"
+          title="See reviews"
+        >
+          <span className="text-sm text-umd-black truncate group-hover:text-umd-red group-hover:underline">{item.name}</span>
+          {summary && summary.count > 0 && (
+            <span className="inline-flex items-center gap-0.5 shrink-0">
+              <StarRating value={summary.average} size="sm" />
+              <span className="text-[10px] text-umd-gray-dark">({summary.count})</span>
+            </span>
+          )}
+        </button>
       </div>
       <ItemBadges tags={item.tags} />
     </div>
   );
 }
 
-function StationGroup({ station, items, favorites, onToggleFav, expandSignal }) {
+function StationGroup({ station, items, favorites, onToggleFav, expandSignal, summaries, onOpenReviews }) {
   const [open, setOpen] = useState(true);
   const sorted = useMemo(() => [...items].sort((a, b) => a.name.localeCompare(b.name)), [items]);
 
@@ -170,7 +184,8 @@ function StationGroup({ station, items, favorites, onToggleFav, expandSignal }) 
       {open && (
         <div className="divide-y divide-umd-gray-light">
           {sorted.map((item, i) => (
-            <ItemRow key={i} item={item} isFav={favorites.has(item.name)} onToggleFav={onToggleFav} />
+            <ItemRow key={i} item={item} isFav={favorites.has(item.name)} onToggleFav={onToggleFav}
+              summary={summaries?.[item.food_item_id]} onOpenReviews={onOpenReviews} />
           ))}
         </div>
       )}
@@ -349,7 +364,7 @@ function SearchBar({ value, onChange }) {
   );
 }
 
-function SearchResults({ data, query, includeTags, excludeTags, favorites, onToggleFav }) {
+function SearchResults({ data, query, includeTags, excludeTags, favorites, onToggleFav, summaries, onOpenReviews }) {
   const q = query.trim().toLowerCase();
   const matches = useMemo(() => {
     if (!data || !q) return [];
@@ -398,10 +413,18 @@ function SearchResults({ data, query, includeTags, excludeTags, favorites, onTog
                     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                   </svg>
                 </button>
-                <div className="min-w-0">
-                  <div className="text-sm text-umd-black truncate">{m.item.name}</div>
+                <button onClick={() => onOpenReviews(m.item)} className="min-w-0 text-left group">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm text-umd-black truncate group-hover:text-umd-red group-hover:underline">{m.item.name}</span>
+                    {summaries?.[m.item.food_item_id]?.count > 0 && (
+                      <span className="inline-flex items-center gap-0.5 shrink-0">
+                        <StarRating value={summaries[m.item.food_item_id].average} size="sm" />
+                        <span className="text-[10px] text-umd-gray-dark">({summaries[m.item.food_item_id].count})</span>
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-umd-gray-dark truncate">{m.hall} &middot; {m.meal} &middot; {m.station}</div>
-                </div>
+                </button>
               </div>
               <ItemBadges tags={m.item.tags} />
             </div>
@@ -522,6 +545,8 @@ export default function MenuPage() {
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState(() => new Set());
   const [expandSignal, setExpandSignal] = useState({ version: 0, open: true });
+  const [summaries, setSummaries] = useState({});
+  const [selectedDish, setSelectedDish] = useState(null);
 
   useEffect(() => {
     patchMenu({ favoritesCount: favorites.size });
@@ -627,6 +652,29 @@ export default function MenuPage() {
   }, [date]);
 
   useEffect(() => { fetchMenu(); }, [fetchMenu]);
+
+  const allItemIds = useMemo(() => {
+    if (!data) return [];
+    const ids = new Set();
+    for (const meals of Object.values(data.halls)) {
+      for (const stations of Object.values(meals)) {
+        for (const items of Object.values(stations)) {
+          for (const it of items) if (it.food_item_id != null) ids.add(it.food_item_id);
+        }
+      }
+    }
+    return [...ids];
+  }, [data]);
+
+  const refreshSummaries = useCallback(async () => {
+    if (allItemIds.length === 0) { setSummaries({}); return; }
+    try {
+      const resp = await apiGet(`/api/reviews/summary?ids=${allItemIds.join(',')}`);
+      setSummaries(resp || {});
+    } catch { /* ignore */ }
+  }, [allItemIds]);
+
+  useEffect(() => { refreshSummaries(); }, [refreshSummaries]);
 
   // Auto-open the preferred hall (Settings) on first visit; never overrides a hall the
   // user has already picked, since activeHall persists in navigation state.
@@ -848,6 +896,8 @@ export default function MenuPage() {
                   excludeTags={excludeTags}
                   favorites={favorites}
                   onToggleFav={toggleFav}
+                  summaries={summaries}
+                  onOpenReviews={setSelectedDish}
                 />
               ) : (
                 <>
@@ -904,7 +954,7 @@ export default function MenuPage() {
                     <div className="columns-1 md:columns-2 xl:columns-3 gap-3">
                       {Object.keys(filteredStations).sort().map((station) => (
                         <div key={station} className="break-inside-avoid mb-3">
-                          <StationGroup station={station} items={filteredStations[station]} favorites={favorites} onToggleFav={toggleFav} expandSignal={expandSignal} />
+                          <StationGroup station={station} items={filteredStations[station]} favorites={favorites} onToggleFav={toggleFav} expandSignal={expandSignal} summaries={summaries} onOpenReviews={setSelectedDish} />
                         </div>
                       ))}
                     </div>
@@ -923,6 +973,14 @@ export default function MenuPage() {
         favorites={favorites}
         onRemove={removeFav}
         onClose={() => setShowFavManager(false)}
+      />
+
+      <DishReviewsModal
+        open={selectedDish != null}
+        foodItemId={selectedDish?.food_item_id}
+        foodName={selectedDish?.name}
+        onClose={() => setSelectedDish(null)}
+        onChanged={refreshSummaries}
       />
     </div>
   );
