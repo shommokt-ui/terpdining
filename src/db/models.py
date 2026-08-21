@@ -172,13 +172,12 @@ CREATE INDEX IF NOT EXISTS idx_password_resets_user
 
 CREATE TABLE IF NOT EXISTS reviews (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     food_item_id INTEGER NOT NULL REFERENCES food_items(id) ON DELETE CASCADE,
+    user_id      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    author_name  TEXT,
     rating       INTEGER NOT NULL,
     comment      TEXT,
-    created_at   TEXT    NOT NULL,
-    updated_at   TEXT    NOT NULL,
-    UNIQUE (user_id, food_item_id)
+    created_at   TEXT    NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_reviews_food
@@ -329,13 +328,12 @@ CREATE INDEX IF NOT EXISTS idx_password_resets_user
 
 CREATE TABLE IF NOT EXISTS reviews (
     id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    user_id      BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     food_item_id BIGINT NOT NULL REFERENCES food_items(id) ON DELETE CASCADE,
+    user_id      BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    author_name  TEXT,
     rating       INTEGER NOT NULL,
     comment      TEXT,
-    created_at   TEXT   NOT NULL,
-    updated_at   TEXT   NOT NULL,
-    UNIQUE (user_id, food_item_id)
+    created_at   TEXT   NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_reviews_food
@@ -398,6 +396,7 @@ def get_connection(db_path: Path | str | None = None):
 
 def init_db(conn) -> None:
     """Run schema + seed halls."""
+    _migrate_reviews_table(conn)
     schema = _POSTGRES_SCHEMA_SQL if is_postgres(conn) else _SQLITE_SCHEMA_SQL
     conn.executescript(schema)
     for loc_num, name in DINING_HALLS_SEED:
@@ -416,4 +415,41 @@ def _ensure_portion_label_column(conn) -> None:
     cols = [row[1] for row in conn.execute("PRAGMA table_info(food_logs)").fetchall()]
     if cols and "portion_label" not in cols:
         conn.execute("ALTER TABLE food_logs ADD COLUMN portion_label TEXT")
+        conn.commit()
+
+
+def _migrate_reviews_table(conn) -> None:
+    """Migrate the first-gen account-bound reviews table to the open,
+    append-only shape.
+
+    The original table had ``user_id NOT NULL`` + ``UNIQUE (user_id,
+    food_item_id)``, which SQLite cannot alter in place. Since reviews were
+    brand new, we simply drop the outdated table (identified by the missing
+    ``author_name`` column) and let the schema recreate it. Any existing rows
+    are discarded.
+    """
+    if is_postgres(conn):
+        exists = conn.execute(
+            "SELECT 1 FROM information_schema.tables "
+            "WHERE table_schema = 'public' AND table_name = 'reviews'"
+        ).fetchone()
+        if not exists:
+            return
+        has_col = conn.execute(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = 'reviews' AND column_name = 'author_name'"
+        ).fetchone()
+        if not has_col:
+            conn.execute("DROP TABLE reviews")
+            conn.commit()
+        return
+
+    table = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'reviews'"
+    ).fetchone()
+    if not table:
+        return
+    cols = [row[1] for row in conn.execute("PRAGMA table_info(reviews)").fetchall()]
+    if "author_name" not in cols:
+        conn.execute("DROP TABLE reviews")
         conn.commit()

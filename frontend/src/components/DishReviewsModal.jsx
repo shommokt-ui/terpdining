@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { apiGet, apiPost, apiDelete } from '../api';
+import { apiGet, apiPost } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import StarRating from './StarRating';
@@ -20,6 +19,7 @@ export default function DishReviewsModal({ open, foodItemId, foodName, onClose, 
   const [loading, setLoading] = useState(true);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
+  const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -28,8 +28,6 @@ export default function DishReviewsModal({ open, foodItemId, foodName, onClose, 
     try {
       const resp = await apiGet(`/api/reviews/${foodItemId}`);
       setData(resp);
-      setRating(resp.my_review?.rating ?? 0);
-      setComment(resp.my_review?.comment ?? '');
     } catch {
       setData(null);
     } finally {
@@ -38,8 +36,12 @@ export default function DishReviewsModal({ open, foodItemId, foodName, onClose, 
   }, [foodItemId]);
 
   useEffect(() => {
-    if (open) load();
-  }, [open, load]);
+    if (!open) return;
+    setRating(0);
+    setComment('');
+    setName(user ? user.email.split('@')[0] : '');
+    load();
+  }, [open, load, user]);
 
   useEffect(() => {
     if (!open) return;
@@ -62,34 +64,21 @@ export default function DishReviewsModal({ open, foodItemId, foodName, onClose, 
         food_item_id: foodItemId,
         rating,
         comment: comment.trim() || null,
+        name: name.trim() || null,
       });
-      toast(data?.my_review ? 'Review updated.' : 'Review posted!', 'info');
-      await load();
-      onChanged?.();
-    } catch (err) {
-      toast(err.message || "Couldn't save your review.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDelete() {
-    setSaving(true);
-    try {
-      await apiDelete(`/api/reviews/${foodItemId}`);
+      toast('Review posted!', 'info');
       setRating(0);
       setComment('');
-      toast('Review removed.', 'info');
       await load();
       onChanged?.();
     } catch (err) {
-      toast(err.message || "Couldn't remove your review.");
+      toast(err.message || "Couldn't post your review.");
     } finally {
       setSaving(false);
     }
   }
 
-  const others = (data?.reviews || []).filter((r) => !r.is_mine);
+  const reviews = data?.reviews || [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -128,57 +117,39 @@ export default function DishReviewsModal({ open, foodItemId, foodName, onClose, 
             </div>
           ) : (
             <>
-              {user ? (
-                <form onSubmit={handleSubmit} className="umd-card rounded-xl p-4 space-y-3">
-                  <div className="text-sm font-semibold text-umd-black">
-                    {data?.my_review ? 'Your review' : 'Write a review'}
-                  </div>
-                  <StarRating value={rating} onChange={setRating} size="lg" />
-                  <textarea
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    rows={3}
-                    maxLength={1000}
-                    placeholder="How was it? (optional)"
-                    className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent resize-none"
-                  />
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="submit"
-                      disabled={saving}
-                      className="bg-umd-red hover:bg-umd-red-dark text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
-                    >
-                      {saving ? 'Saving...' : data?.my_review ? 'Update review' : 'Post review'}
-                    </button>
-                    {data?.my_review && (
-                      <button
-                        type="button"
-                        onClick={handleDelete}
-                        disabled={saving}
-                        className="border border-umd-gray text-umd-body hover:border-red-400 hover:text-red-500 font-semibold px-4 py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                </form>
-              ) : (
-                <div className="umd-card rounded-xl p-4 flex items-center justify-between gap-3 flex-wrap">
-                  <span className="text-sm text-umd-body">Sign in to leave a review.</span>
-                  <div className="flex items-center gap-2">
-                    <Link to="/login" className="border border-umd-gray text-umd-black hover:border-umd-red hover:text-umd-red font-semibold px-3 py-1.5 rounded-lg text-sm transition-colors">Log In</Link>
-                    <Link to="/register" className="bg-umd-red hover:bg-umd-red-dark text-white font-semibold px-3 py-1.5 rounded-lg text-sm transition-colors">Sign Up</Link>
-                  </div>
-                </div>
-              )}
+              <form onSubmit={handleSubmit} className="umd-card rounded-xl p-4 space-y-3">
+                <div className="text-sm font-semibold text-umd-black">Write a review</div>
+                <StarRating value={rating} onChange={setRating} size="lg" />
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  maxLength={40}
+                  placeholder="Your name (optional)"
+                  className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
+                />
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  rows={3}
+                  maxLength={1000}
+                  placeholder="How was it? (optional)"
+                  className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent resize-none"
+                />
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="bg-umd-red hover:bg-umd-red-dark text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
+                >
+                  {saving ? 'Posting...' : 'Post review'}
+                </button>
+              </form>
 
               <div className="space-y-3">
-                {others.length === 0 ? (
-                  <p className="text-sm text-umd-body text-center py-4">
-                    {data?.count > 0 ? 'No other reviews yet.' : 'Be the first to review this dish!'}
-                  </p>
+                {reviews.length === 0 ? (
+                  <p className="text-sm text-umd-body text-center py-4">Be the first to review this dish!</p>
                 ) : (
-                  others.map((r) => (
+                  reviews.map((r) => (
                     <div key={r.id} className="border-b border-umd-gray-light last:border-b-0 pb-3 last:pb-0">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-sm font-semibold text-umd-black truncate">{r.author}</span>

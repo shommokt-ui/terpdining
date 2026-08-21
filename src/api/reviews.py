@@ -1,6 +1,8 @@
-"""Dish reviews: 1-5 star rating + optional comment, one per user per dish.
+"""Dish reviews: 1-5 star rating + optional comment.
 
-Reads are public (guests can see ratings); writing/deleting requires auth.
+Fully public and append-only: anyone (signed in or not) can read and post.
+Each review carries an optional display name (blank shows as "Anonymous").
+No editing or deleting.
 """
 
 from __future__ import annotations
@@ -10,15 +12,19 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from src.api.deps import get_current_user, get_current_user_optional, get_db
+from src.api.deps import get_current_user_optional, get_db
 
 router = APIRouter(prefix="/api/reviews", tags=["reviews"])
+
+NAME_MAX = 40
+COMMENT_MAX = 1000
 
 
 class ReviewIn(BaseModel):
     food_item_id: int
     rating: int = Field(..., ge=1, le=5)
-    comment: str | None = None
+    comment: str | None = Field(default=None, max_length=COMMENT_MAX)
+    name: str | None = Field(default=None, max_length=NAME_MAX)
 
 
 class ReviewOut(BaseModel):
@@ -27,14 +33,12 @@ class ReviewOut(BaseModel):
     comment: str | None
     author: str
     created_at: str
-    is_mine: bool
 
 
 class ReviewListOut(BaseModel):
     food_item_id: int
     average: float | None
     count: int
-    my_review: ReviewOut | None
     reviews: list[ReviewOut]
 
 
@@ -43,18 +47,13 @@ class SummaryOut(BaseModel):
     count: int
 
 
-def _author_label(display_name: str | None, email: str) -> str:
-    name = (display_name or "").strip()
-    if name:
-        return name
-    return email.split("@")[0]
-
-
-def _clean_comment(comment: str | None) -> str | None:
-    if comment is None:
+def _clean(text: str | None, limit: int) -> str | None:
+    if text is None:
         return None
-    text = comment.strip()
-    return text or None
+    text = " ".join(text.strip().split()) if limit == NAME_MAX else text.strip()
+    if not text:
+        return None
+    return text[:limit]
 
 
 @router.get("/summary", response_model=dict[str, SummaryOut])
@@ -89,99 +88,67 @@ def reviews_summary(ids: str = Query(..., description="Comma-separated food_item
 
 
 @router.get("/{food_item_id}", response_model=ReviewListOut)
-def list_reviews(
-    food_item_id: int,
-    user=Depends(get_current_user_optional),
-    conn=Depends(get_db),
-):
+def list_reviews(food_item_id: int, conn=Depends(get_db)):
     rows = conn.execute(
         """\
-        SELECT r.id, r.rating, r.comment, r.created_at, r.user_id,
-               u.email, u.display_name
-        FROM reviews r
-        JOIN users u ON u.id = r.user_id
-        WHERE r.food_item_id = ?
-        ORDER BY r.updated_at DESC
+        SELECT id, rating, comment, author_name, created_at
+        FROM reviews
+        WHERE food_item_id = ?
+        ORDER BY created_at DESC, id DESC
         """,
         (food_item_id,),
     ).fetchall()
 
-    my_id = user["id"] if user else None
     reviews: list[ReviewOut] = []
-    my_review: ReviewOut | None = None
     total = 0
     for r in rows:
         total += r["rating"]
-        is_mine = my_id is not None and r["user_id"] == my_id
-        item = ReviewOut(
-            id=r["id"],
-            rating=r["rating"],
-            comment=r["comment"],
-            author=_author_label(r["display_name"], r["email"]),
-            created_at=r["created_at"],
-            is_mine=is_mine,
+        reviews.append(
+            ReviewOut(
+                id=r["id"],
+                rating=r["rating"],
+                comment=r["comment"],
+                author=r["author_name"] or "Anonymous",
+                created_at=r["created_at"],
+            )
         )
-        reviews.append(item)
-        if is_mine:
-            my_review = item
 
     count = len(reviews)
     average = round(total / count, 2) if count else None
-    return ReviewListOut(
-        food_item_id=food_item_id,
-        average=average,
-        count=count,
-        my_review=my_review,
-        reviews=reviews,
-    )
+    return ReviewListOut(food_item_id=food_item_id, average=average, count=count, reviews=reviews)
 
 
 @router.post("", response_model=ReviewOut)
-def upsert_review(body: ReviewIn, user=Depends(get_current_user), conn=Depends(get_db)):
+def create_review(body: ReviewIn, user=Depends(get_current_user_optional), conn=Depends(get_db)):
     exists = conn.execute(
         "SELECT id FROM food_items WHERE id = ?", (body.food_item_id,)
     ).fetchone()
     if not exists:
         raise HTTPException(status_code=404, detail="Dish not found")
 
-    comment = _clean_comment(body.comment)
-    now = datetime.now(timezone.utc).isoformat()
-    conn.execute(
-        """\
-        INSERT INTO reviews (user_id, food_item_id, rating, comment, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT (user_id, food_item_id)
-        DO UPDATE SET rating = excluded.rating,
-                      comment = excluded.comment,
-                      updated_at = excluded.updated_at
-        """,
-        (user["id"], body.food_item_id, body.rating, comment, now, now),
-    )
-    conn.commit()
+    name = _clean(body.name, NAME_MAX)
+    if not name and user:
+        row = conn.execute(
+            "SELECT display_name, email FROM users WHERE id = ?", (user["id"],)
+        ).fetchone()
+        if row:
+            name = (row["display_name"] or "").strip() or row["email"].split("@")[0]
 
+    comment = _clean(body.comment, COMMENT_MAX)
+    now = datetime.now(timezone.utc).isoformat()
     row = conn.execute(
         """\
-        SELECT r.id, r.rating, r.comment, r.created_at, u.email, u.display_name
-        FROM reviews r
-        JOIN users u ON u.id = r.user_id
-        WHERE r.user_id = ? AND r.food_item_id = ?
+        INSERT INTO reviews (food_item_id, user_id, author_name, rating, comment, created_at)
+        VALUES (?, ?, ?, ?, ?, ?) RETURNING id
         """,
-        (user["id"], body.food_item_id),
+        (body.food_item_id, user["id"] if user else None, name, body.rating, comment, now),
     ).fetchone()
+    conn.commit()
+
     return ReviewOut(
         id=row["id"],
-        rating=row["rating"],
-        comment=row["comment"],
-        author=_author_label(row["display_name"], row["email"]),
-        created_at=row["created_at"],
-        is_mine=True,
+        rating=body.rating,
+        comment=comment,
+        author=name or "Anonymous",
+        created_at=now,
     )
-
-
-@router.delete("/{food_item_id}", status_code=204)
-def delete_review(food_item_id: int, user=Depends(get_current_user), conn=Depends(get_db)):
-    conn.execute(
-        "DELETE FROM reviews WHERE user_id = ? AND food_item_id = ?",
-        (user["id"], food_item_id),
-    )
-    conn.commit()

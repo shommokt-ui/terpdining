@@ -139,14 +139,14 @@ function ItemRow({ item, isFav, onToggleFav, summary, onOpenReviews }) {
         </button>
         <button
           onClick={() => onOpenReviews(item)}
-          className="min-w-0 text-left group flex items-center gap-1.5"
+          className="min-w-0 text-left group"
           title="See reviews"
         >
-          <span className="text-sm text-umd-black truncate group-hover:text-umd-red group-hover:underline">{item.name}</span>
+          <span className="block text-sm text-umd-black truncate group-hover:text-umd-red group-hover:underline">{item.name}</span>
           {summary && summary.count > 0 && (
-            <span className="inline-flex items-center gap-0.5 shrink-0">
+            <span className="flex items-center gap-1 mt-0.5">
               <StarRating value={summary.average} size="sm" />
-              <span className="text-[10px] text-umd-gray-dark">({summary.count})</span>
+              <span className="text-[10px] text-umd-gray-dark">{summary.average} ({summary.count})</span>
             </span>
           )}
         </button>
@@ -414,16 +414,16 @@ function SearchResults({ data, query, includeTags, excludeTags, favorites, onTog
                   </svg>
                 </button>
                 <button onClick={() => onOpenReviews(m.item)} className="min-w-0 text-left group">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm text-umd-black truncate group-hover:text-umd-red group-hover:underline">{m.item.name}</span>
-                    {summaries?.[m.item.food_item_id]?.count > 0 && (
-                      <span className="inline-flex items-center gap-0.5 shrink-0">
-                        <StarRating value={summaries[m.item.food_item_id].average} size="sm" />
-                        <span className="text-[10px] text-umd-gray-dark">({summaries[m.item.food_item_id].count})</span>
+                  <span className="block text-sm text-umd-black truncate group-hover:text-umd-red group-hover:underline">{m.item.name}</span>
+                  {summaries?.[m.item.food_item_id]?.count > 0 && (
+                    <span className="flex items-center gap-1 mt-0.5">
+                      <StarRating value={summaries[m.item.food_item_id].average} size="sm" />
+                      <span className="text-[10px] text-umd-gray-dark">
+                        {summaries[m.item.food_item_id].average} ({summaries[m.item.food_item_id].count})
                       </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-umd-gray-dark truncate">{m.hall} &middot; {m.meal} &middot; {m.station}</div>
+                    </span>
+                  )}
+                  <span className="block text-xs text-umd-gray-dark truncate">{m.hall} &middot; {m.meal} &middot; {m.station}</span>
                 </button>
               </div>
               <ItemBadges tags={m.item.tags} />
