@@ -72,6 +72,15 @@ export default function PrivacyPolicyPage() {
                 cuisine, and dietary goals you submit to the AI recipe creator, along with the
                 generated suggestions, so you can revisit past recipe sessions.
               </li>
+              <li>
+                <strong className="text-umd-black">Dish reviews</strong>: the star rating, optional
+                comment, and optional display name you submit for a dish at a specific dining hall.
+                Reviews are <strong className="text-umd-black">publicly visible</strong> to anyone
+                using the app. Posting requires an account, and each review is linked to your
+                account internally so we can moderate abuse — but if you leave the name field
+                blank, your review is shown publicly as "Anonymous" and your email is never
+                displayed.
+              </li>
             </ul>
             <p className="text-sm text-umd-body bg-umd-gray-light rounded-lg px-3 py-2">
               We do not collect payment information, location data, or contacts.
@@ -85,6 +94,10 @@ export default function PrivacyPolicyPage() {
             </div>
             <ul className="list-disc pl-5 space-y-2 text-sm text-umd-body">
               <li>To operate your account (login, favorites, tracker history, saved recipe sessions).</li>
+              <li>
+                To publish your dish reviews and show average ratings on menus, and to moderate
+                reviews (filtering offensive language and rate-limiting spam).
+              </li>
               <li>
                 To generate recipe suggestions: your recipe request (dining hall, meal, cuisine,
                 goals, and the day's available menu items) is sent to{' '}
@@ -111,6 +124,11 @@ export default function PrivacyPolicyPage() {
               Your account data (favorites, tracker logs, goals, recipe sessions) persists until you
               delete it or ask us to delete your account. Password reset tokens expire after 1 hour
               whether or not they're used.
+            </p>
+            <p className="text-sm text-umd-body">
+              Reviews you post are public and permanent — they can't be edited or deleted from the
+              app. If you delete your account, your reviews stay published but are unlinked from
+              your account. To have a specific review removed, email us at the address below.
             </p>
           </div>
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { apiGet, apiPost } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -162,17 +163,37 @@ export default function DishReviewsModal({ open, foodItemId, foodName, hall, onC
         </div>
 
         <div className="overflow-y-auto px-5 py-4 space-y-5">
+          {!user ? (
+            <div className="umd-card rounded-xl p-4 space-y-2 text-center">
+              <div className="text-sm font-semibold text-umd-black">Want to leave a review?</div>
+              <p className="text-xs text-umd-body">
+                Sign in to post. You can still choose to show up as "Anonymous".
+              </p>
+              <Link
+                to="/login"
+                onClick={onClose}
+                className="inline-block bg-umd-red hover:bg-umd-red-dark text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+              >
+                Sign in
+              </Link>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="umd-card rounded-xl p-4 space-y-3">
             <div className="text-sm font-semibold text-umd-black">Write a review</div>
             <StarRating value={rating} onChange={setRating} size="lg" />
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={40}
-              placeholder="Your name (optional)"
-              className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
-            />
+            <div>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={40}
+                placeholder="Your name (optional)"
+                className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
+              />
+              <div className="text-[11px] text-umd-gray-dark mt-0.5">
+                Leave blank to post as "Anonymous".
+              </div>
+            </div>
             <div>
               <textarea
                 value={comment}
@@ -192,6 +213,7 @@ export default function DishReviewsModal({ open, foodItemId, foodName, hall, onC
               {saving ? 'Posting...' : 'Post review'}
             </button>
           </form>
+          )}
 
           {loading ? (
             <div className="space-y-3">

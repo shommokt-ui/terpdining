@@ -1,7 +1,7 @@
-"""Dish reviews: fully public, append-only, optional name, scoped per hall.
+"""Dish reviews: public to read, account required to post, scoped per hall.
 
-Also covers the anti-spam guard (per-IP rate limit + duplicate detection),
-pagination, sorting, and the profanity filter.
+Also covers the anti-spam guard (per-account rate limit + duplicate
+detection), pagination, sorting, and the profanity filter.
 """
 
 from __future__ import annotations
@@ -24,16 +24,30 @@ def _reset_spam():
     reviews._reset_rate_limit()
 
 
-def _post(client, food_id, hall=HALL_A, rating=5, **extra):
+def _post(client, headers, food_id, hall=HALL_A, rating=5, **extra):
     body = {"food_item_id": food_id, "hall": hall, "rating": rating, **extra}
-    return client.post("/api/reviews", json=body)
+    return client.post("/api/reviews", json=body, headers=headers)
 
 
-def test_post_requires_no_auth(client, db):
+def test_posting_requires_auth(client, db):
     food_id = seed_food(db)
-    resp = _post(client, food_id)
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["author"] == "Anonymous"
+    resp = client.post(
+        "/api/reviews", json={"food_item_id": food_id, "hall": HALL_A, "rating": 5}
+    )
+    assert resp.status_code in (401, 403)
+
+
+def test_reading_is_public(client, db, auth_headers):
+    food_id = seed_food(db)
+    _post(client, auth_headers, food_id, rating=4)
+
+    # no Authorization header
+    body = client.get(f"/api/reviews/{food_id}", params={"hall": HALL_A}).json()
+    assert body["count"] == 1
+    assert body["average"] == 4.0
+
+    summary = client.get("/api/reviews/summary", params={"ids": str(food_id), "hall": HALL_A}).json()
+    assert summary[str(food_id)] == {"average": 4.0, "count": 1}
 
 
 def test_public_can_read_empty(client, db):
@@ -47,25 +61,27 @@ def test_public_can_read_empty(client, db):
     assert body["has_more"] is False
 
 
-def test_optional_name_used_as_author(client, db):
+def test_optional_name_used_as_author(client, db, auth_headers):
     food_id = seed_food(db)
-    resp = _post(client, food_id, rating=4, comment="  Solid  ", name="  Testudo  ")
-    out = resp.json()
+    out = _post(
+        client, auth_headers, food_id, rating=4, comment="  Solid  ", name="  Testudo  "
+    ).json()
     assert out["author"] == "Testudo"
     assert out["comment"] == "Solid"
 
 
-def test_blank_name_is_anonymous(client, db):
+def test_blank_name_posts_as_anonymous(client, db, auth_headers):
+    """Signed-in users can still publish anonymously by leaving the name blank."""
     food_id = seed_food(db)
-    out = _post(client, food_id, rating=3, name="   ").json()
+    out = _post(client, auth_headers, food_id, rating=3, name="   ").json()
     assert out["author"] == "Anonymous"
 
 
-def test_multiple_reviews_accumulate(client, db):
+def test_multiple_reviews_accumulate(client, db, auth_headers):
     food_id = seed_food(db)
-    _post(client, food_id, rating=5)
-    _post(client, food_id, rating=3)
-    _post(client, food_id, rating=4)
+    _post(client, auth_headers, food_id, rating=5)
+    _post(client, auth_headers, food_id, rating=3)
+    _post(client, auth_headers, food_id, rating=4)
 
     listed = client.get(f"/api/reviews/{food_id}", params={"hall": HALL_A}).json()
     assert listed["count"] == 3
@@ -73,10 +89,10 @@ def test_multiple_reviews_accumulate(client, db):
     assert listed["has_more"] is False
 
 
-def test_reviews_scoped_per_hall(client, db):
+def test_reviews_scoped_per_hall(client, db, auth_headers):
     food_id = seed_food(db)
-    _post(client, food_id, hall=HALL_A, rating=5, comment="south good")
-    _post(client, food_id, hall=HALL_B, rating=1, comment="yahen bad")
+    _post(client, auth_headers, food_id, hall=HALL_A, rating=5, comment="south good")
+    _post(client, auth_headers, food_id, hall=HALL_B, rating=1, comment="yahen bad")
 
     a = client.get(f"/api/reviews/{food_id}", params={"hall": HALL_A}).json()
     assert a["count"] == 1 and a["average"] == 5.0
@@ -92,42 +108,43 @@ def test_reviews_scoped_per_hall(client, db):
     assert sb[str(food_id)] == {"average": 1.0, "count": 1}
 
 
-def test_logged_in_defaults_to_account_name(client, db, auth_headers):
+def test_review_is_linked_to_account(client, db, auth_headers):
+    """Every review records its author so content stays moderatable."""
     food_id = seed_food(db)
-    out = client.post(
-        "/api/reviews",
-        json={"food_item_id": food_id, "hall": HALL_A, "rating": 5},
-        headers=auth_headers,
-    ).json()
-    assert out["author"] == "terp"
+    _post(client, auth_headers, food_id, rating=5, name="   ")
+    row = db.execute("SELECT user_id FROM reviews WHERE food_item_id = ?", (food_id,)).fetchone()
+    assert row["user_id"] is not None
 
 
-def test_rating_out_of_range_rejected(client, db):
+def test_rating_out_of_range_rejected(client, db, auth_headers):
     food_id = seed_food(db)
-    assert _post(client, food_id, rating=0).status_code == 422
-    assert _post(client, food_id, rating=6).status_code == 422
+    assert _post(client, auth_headers, food_id, rating=0).status_code == 422
+    assert _post(client, auth_headers, food_id, rating=6).status_code == 422
 
 
-def test_unknown_dish_rejected(client, db):
-    assert _post(client, 999999, rating=3).status_code == 404
+def test_unknown_dish_rejected(client, db, auth_headers):
+    assert _post(client, auth_headers, 999999, rating=3).status_code == 404
 
 
-def test_unknown_hall_rejected(client, db):
+def test_unknown_hall_rejected(client, db, auth_headers):
     food_id = seed_food(db)
-    assert _post(client, food_id, hall="Nowhere Hall", rating=3).status_code == 400
+    assert _post(client, auth_headers, food_id, hall="Nowhere Hall", rating=3).status_code == 400
 
 
-def test_missing_hall_rejected(client, db):
+def test_missing_hall_rejected(client, db, auth_headers):
     food_id = seed_food(db)
-    assert client.post("/api/reviews", json={"food_item_id": food_id, "rating": 3}).status_code == 422
+    resp = client.post(
+        "/api/reviews", json={"food_item_id": food_id, "rating": 3}, headers=auth_headers
+    )
+    assert resp.status_code == 422
 
 
-def test_summary_batches_averages(client, db):
+def test_summary_batches_averages(client, db, auth_headers):
     a = seed_food(db, name="Pizza")
     b = seed_food(db, name="Salad")
-    _post(client, a, rating=4)
-    _post(client, a, rating=2)
-    _post(client, b, rating=5)
+    _post(client, auth_headers, a, rating=4)
+    _post(client, auth_headers, a, rating=2)
+    _post(client, auth_headers, b, rating=5)
 
     summary = client.get(
         "/api/reviews/summary", params={"ids": f"{a},{b},999999", "hall": HALL_A}
@@ -137,54 +154,66 @@ def test_summary_batches_averages(client, db):
     assert str(999999) not in summary
 
 
-def test_pagination(client, db, monkeypatch):
+def test_pagination(client, db, auth_headers, monkeypatch):
     monkeypatch.setattr(reviews, "RATE_LIMIT_MAX", 1000)
     food_id = seed_food(db)
     for i in range(12):
-        _post(client, food_id, rating=3, comment=f"c{i}")
+        _post(client, auth_headers, food_id, rating=3, comment=f"c{i}")
 
-    first = client.get(f"/api/reviews/{food_id}", params={"hall": HALL_A, "limit": 10, "offset": 0}).json()
+    first = client.get(
+        f"/api/reviews/{food_id}", params={"hall": HALL_A, "limit": 10, "offset": 0}
+    ).json()
     assert first["count"] == 12
     assert len(first["reviews"]) == 10
     assert first["has_more"] is True
 
-    second = client.get(f"/api/reviews/{food_id}", params={"hall": HALL_A, "limit": 10, "offset": 10}).json()
+    second = client.get(
+        f"/api/reviews/{food_id}", params={"hall": HALL_A, "limit": 10, "offset": 10}
+    ).json()
     assert len(second["reviews"]) == 2
     assert second["has_more"] is False
 
 
-def test_sort_orders(client, db):
+def test_sort_orders(client, db, auth_headers):
     food_id = seed_food(db)
     for rating, c in [(2, "a"), (5, "b"), (3, "c")]:
-        _post(client, food_id, rating=rating, comment=c)
+        _post(client, auth_headers, food_id, rating=rating, comment=c)
 
-    newest = client.get(f"/api/reviews/{food_id}", params={"hall": HALL_A, "sort": "newest"}).json()["reviews"]
+    newest = client.get(
+        f"/api/reviews/{food_id}", params={"hall": HALL_A, "sort": "newest"}
+    ).json()["reviews"]
     assert newest[0]["rating"] == 3  # last posted
 
-    highest = client.get(f"/api/reviews/{food_id}", params={"hall": HALL_A, "sort": "highest"}).json()["reviews"]
+    highest = client.get(
+        f"/api/reviews/{food_id}", params={"hall": HALL_A, "sort": "highest"}
+    ).json()["reviews"]
     assert highest[0]["rating"] == 5
 
-    lowest = client.get(f"/api/reviews/{food_id}", params={"hall": HALL_A, "sort": "lowest"}).json()["reviews"]
+    lowest = client.get(
+        f"/api/reviews/{food_id}", params={"hall": HALL_A, "sort": "lowest"}
+    ).json()["reviews"]
     assert lowest[0]["rating"] == 2
 
 
-def test_rate_limit_blocks_bursts(client, db, monkeypatch):
+def test_rate_limit_blocks_bursts(client, db, auth_headers, monkeypatch):
     monkeypatch.setattr(reviews, "RATE_LIMIT_MAX", 3)
     food_id = seed_food(db)
     for i in range(3):
-        assert _post(client, food_id, rating=4, comment=f"c{i}").status_code == 200
-    assert _post(client, food_id, rating=4, comment="c3").status_code == 429
+        assert _post(client, auth_headers, food_id, rating=4, comment=f"c{i}").status_code == 200
+    assert _post(client, auth_headers, food_id, rating=4, comment="c3").status_code == 429
 
 
-def test_duplicate_guard(client, db):
+def test_duplicate_guard(client, db, auth_headers):
     food_id = seed_food(db)
-    assert _post(client, food_id, rating=5, comment="Amazing").status_code == 200
-    assert _post(client, food_id, rating=5, comment="Amazing").status_code == 429
+    assert _post(client, auth_headers, food_id, rating=5, comment="Amazing").status_code == 200
+    assert _post(client, auth_headers, food_id, rating=5, comment="Amazing").status_code == 429
 
 
-def test_profanity_censored(client, db):
+def test_profanity_censored(client, db, auth_headers):
     food_id = seed_food(db)
-    out = _post(client, food_id, rating=1, comment="this shit sucks", name="bitch").json()
+    out = _post(
+        client, auth_headers, food_id, rating=1, comment="this shit sucks", name="bitch"
+    ).json()
     assert "shit" not in out["comment"].lower()
     assert "*" in out["comment"]
     assert "bitch" not in out["author"].lower()

@@ -1,11 +1,13 @@
 """Dish reviews: 1-5 star rating + optional comment.
 
-Fully public and append-only: anyone (signed in or not) can read and post.
-Each review carries an optional display name (blank shows as "Anonymous").
-No editing or deleting.
+Anyone can READ reviews without an account. Posting requires a signed-in
+account so every review is attributable for moderation purposes (App Store
+guideline 1.2 for user-generated content), even though the *displayed* name
+stays optional — a blank name shows publicly as "Anonymous".
 
-Because posting is open/anonymous, a lightweight per-IP rate limit plus a
-duplicate-submit guard and a small profanity filter are applied on write.
+Reviews are append-only (no editing or deleting) and scoped per dining hall.
+A per-account rate limit, duplicate-submit guard, and small profanity filter
+are applied on write.
 """
 
 from __future__ import annotations
@@ -14,10 +16,10 @@ import re
 import time
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from src.api.deps import get_current_user_optional, get_db
+from src.api.deps import get_current_user, get_db
 
 router = APIRouter(prefix="/api/reviews", tags=["reviews"])
 
@@ -27,11 +29,11 @@ PAGE_MAX = 50
 PAGE_DEFAULT = 10
 
 # --- anti-spam knobs (module-level so tests can tweak / reset) ---------------
-RATE_LIMIT_MAX = 8          # max posts per IP within the window
+RATE_LIMIT_MAX = 8          # max posts per account within the window
 RATE_LIMIT_WINDOW = 60.0    # seconds
 DUP_WINDOW = 600.0          # seconds an identical post is treated as a dupe
 
-_post_history: dict[str, list[float]] = {}
+_post_history: dict[int, list[float]] = {}
 _recent_submits: dict[tuple, float] = {}
 
 _SORTS = {
@@ -53,13 +55,6 @@ def _reset_rate_limit() -> None:
     """Clear the in-memory anti-spam state (used by tests)."""
     _post_history.clear()
     _recent_submits.clear()
-
-
-def _client_ip(request: Request) -> str:
-    fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
 
 
 def _censor(text: str | None) -> str | None:
@@ -88,13 +83,13 @@ def _resolve_hall_id(conn, hall: str | None) -> int | None:
     return row["id"] if row else None
 
 
-def _check_rate_limit(ip: str, dup_key: tuple) -> None:
+def _check_rate_limit(user_id: int, dup_key: tuple) -> None:
     now = time.time()
 
-    # prune + enforce per-IP window
-    history = [t for t in _post_history.get(ip, []) if now - t < RATE_LIMIT_WINDOW]
+    # prune + enforce per-account window
+    history = [t for t in _post_history.get(user_id, []) if now - t < RATE_LIMIT_WINDOW]
     if len(history) >= RATE_LIMIT_MAX:
-        _post_history[ip] = history
+        _post_history[user_id] = history
         raise HTTPException(status_code=429, detail="You're posting too fast. Please wait a bit.")
 
     # duplicate guard
@@ -104,7 +99,7 @@ def _check_rate_limit(ip: str, dup_key: tuple) -> None:
 
     # record
     history.append(now)
-    _post_history[ip] = history
+    _post_history[user_id] = history
     _recent_submits[dup_key] = now
 
     # opportunistic cleanup so the dup map doesn't grow unbounded
@@ -255,10 +250,11 @@ def list_reviews(
 @router.post("", response_model=ReviewOut)
 def create_review(
     body: ReviewIn,
-    request: Request,
-    user=Depends(get_current_user_optional),
+    user=Depends(get_current_user),
     conn=Depends(get_db),
 ):
+    """Post a review. Requires an account so content stays attributable, but
+    the public display name is optional (blank posts show as "Anonymous")."""
     exists = conn.execute(
         "SELECT id FROM food_items WHERE id = ?", (body.food_item_id,)
     ).fetchone()
@@ -270,18 +266,10 @@ def create_review(
         raise HTTPException(status_code=400, detail="Unknown dining hall")
 
     name = _censor(_clean(body.name, NAME_MAX))
-    if not name and user:
-        row = conn.execute(
-            "SELECT display_name, email FROM users WHERE id = ?", (user["id"],)
-        ).fetchone()
-        if row:
-            name = (row["display_name"] or "").strip() or row["email"].split("@")[0]
-
     comment = _censor(_clean(body.comment, COMMENT_MAX))
 
-    ip = _client_ip(request)
-    dup_key = (ip, body.food_item_id, hall_id, body.rating, (comment or "").lower())
-    _check_rate_limit(ip, dup_key)
+    dup_key = (user["id"], body.food_item_id, hall_id, body.rating, (comment or "").lower())
+    _check_rate_limit(user["id"], dup_key)
 
     now = datetime.now(timezone.utc).isoformat()
     row = conn.execute(
@@ -289,7 +277,7 @@ def create_review(
         INSERT INTO reviews (food_item_id, hall_id, user_id, author_name, rating, comment, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id
         """,
-        (body.food_item_id, hall_id, user["id"] if user else None, name, body.rating, comment, now),
+        (body.food_item_id, hall_id, user["id"], name, body.rating, comment, now),
     ).fetchone()
     conn.commit()
 
