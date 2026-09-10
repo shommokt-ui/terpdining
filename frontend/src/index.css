@@ -144,3 +144,9 @@ input:-webkit-autofill:focus {
   caret-color: var(--color-umd-black);
   transition: background-color 0s 600000s, color 0s 600000s;
 }
+
+/* Overpass renders the password bullet (U+2022) oversized in iOS WKWebView.
+   Use a system font for masked fields so the dots match the text size. */
+input[type="password"] {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
