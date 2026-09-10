@@ -390,30 +390,29 @@ function SearchBar({ value, onChange }) {
 function SearchResults({ data, query, includeTags, excludeTags, favorites, onToggleFav, summaries, onOpenReviews }) {
   const q = query.trim().toLowerCase();
 
-  // One section per dining hall; within a hall a dish is the same item across
-  // meals, so it appears once, tagged with every meal it's served at that day.
+  // One section per dining hall; within a hall the item is identical across
+  // meals/stations, so it appears once.
   const groups = useMemo(() => {
     if (!data || !q) return [];
     const order = data.all_halls?.length ? data.all_halls : Object.keys(data.halls);
     const out = [];
     for (const hall of order) {
-      const byItem = new Map();
-      for (const [meal, stations] of Object.entries(data.halls[hall] || {})) {
+      const seen = new Set();
+      const items = [];
+      for (const stations of Object.values(data.halls[hall] || {})) {
         for (const list of Object.values(stations)) {
           for (const item of list) {
             if (!item.name.toLowerCase().includes(q)) continue;
             if (includeTags.length > 0 && !includeTags.every((t) => item.tags.includes(t))) continue;
             if (excludeTags.length > 0 && excludeTags.some((t) => item.tags.includes(t))) continue;
-            const entry = byItem.get(item.food_item_id) || { item, meals: new Set() };
-            entry.meals.add(meal);
-            byItem.set(item.food_item_id, entry);
+            if (seen.has(item.food_item_id)) continue;
+            seen.add(item.food_item_id);
+            items.push(item);
           }
         }
       }
-      if (byItem.size) {
-        const items = [...byItem.values()]
-          .map((e) => ({ item: e.item, meals: MEAL_ORDER.filter((m) => e.meals.has(m)) }))
-          .sort((a, b) => a.item.name.localeCompare(b.item.name));
+      if (items.length) {
+        items.sort((a, b) => a.name.localeCompare(b.name));
         out.push({ hall, items });
       }
     }
@@ -439,7 +438,7 @@ function SearchResults({ data, query, includeTags, excludeTags, favorites, onTog
         <div key={g.hall} className="space-y-1.5">
           <div className="text-xs font-bold text-umd-black px-1">{g.hall}</div>
           <div className="umd-card rounded-xl divide-y divide-umd-gray-light overflow-hidden">
-            {g.items.map(({ item, meals }) => {
+            {g.items.map((item) => {
               const isFav = favorites.has(item.name);
               const summary = summaries?.[g.hall]?.[item.food_item_id];
               return (
@@ -456,9 +455,6 @@ function SearchResults({ data, query, includeTags, excludeTags, favorites, onTog
                     </button>
                     <button onClick={() => onOpenReviews(item, g.hall)} className="min-w-0 text-left group">
                       <span className="block text-sm text-umd-black truncate group-hover:text-umd-red group-hover:underline">{item.name}</span>
-                      <span className="block text-[11px] text-umd-gray-dark truncate">
-                        {meals.map((m) => `${m} ${mealTimeLabel(m)}`).join(' · ')}
-                      </span>
                       {summary?.count > 0 && (
                         <span className="flex items-center gap-1 mt-0.5">
                           <StarRating value={summary.average} size="sm" />
