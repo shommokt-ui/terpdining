@@ -7,6 +7,7 @@ import { MEAL_HOURS } from '../mealHours';
 import { getPreferredHall } from '../preferences';
 import StarRating from '../components/StarRating';
 import DishReviewsModal from '../components/DishReviewsModal';
+import ExternalLink from '../components/ExternalLink';
 import {
   scheduleUpcomingFavoriteNotifications,
   cancelPendingFavoriteNotifications,
@@ -129,19 +130,17 @@ function ItemBadges({ tags }) {
 function NutritionLink({ url, className = '' }) {
   if (!url) return null;
   return (
-    <a
+    <ExternalLink
       href={url}
-      target="_blank"
-      rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}
       title="Nutrition facts & macros"
       aria-label="Nutrition facts and macros"
-      className={`flex-shrink-0 p-0.5 text-umd-gray-dark hover:text-umd-red transition-colors ${className}`}
+      className={`flex-shrink-0 -m-1.5 p-1.5 text-umd-gray-dark hover:text-umd-red transition-colors ${className}`}
     >
-      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6M9 11h6M9 15h4M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
       </svg>
-    </a>
+    </ExternalLink>
   );
 }
 
@@ -388,26 +387,26 @@ function SearchBar({ value, onChange }) {
   );
 }
 
-function SearchResults({ data, query, includeTags, excludeTags, favorites, onToggleFav, summaries, onOpenReviews }) {
+function SearchResults({ data, hall, query, includeTags, excludeTags, favorites, onToggleFav, summaries, onOpenReviews }) {
   const q = query.trim().toLowerCase();
   const matches = useMemo(() => {
-    if (!data || !q) return [];
+    if (!data || !q || !hall) return [];
     const found = [];
-    for (const [hall, meals] of Object.entries(data.halls)) {
-      for (const [meal, stations] of Object.entries(meals)) {
-        for (const [station, items] of Object.entries(stations)) {
-          for (const item of items) {
-            if (!item.name.toLowerCase().includes(q)) continue;
-            if (includeTags.length > 0 && !includeTags.every((t) => item.tags.includes(t))) continue;
-            if (excludeTags.length > 0 && excludeTags.some((t) => item.tags.includes(t))) continue;
-            found.push({ item, hall, meal, station });
-          }
+    // Only the hall the user is viewing — a dish scraped at another hall is a
+    // different recipe with its own portion and macros.
+    for (const [meal, stations] of Object.entries(data.halls[hall] || {})) {
+      for (const [station, items] of Object.entries(stations)) {
+        for (const item of items) {
+          if (!item.name.toLowerCase().includes(q)) continue;
+          if (includeTags.length > 0 && !includeTags.every((t) => item.tags.includes(t))) continue;
+          if (excludeTags.length > 0 && excludeTags.some((t) => item.tags.includes(t))) continue;
+          found.push({ item, meal, station });
         }
       }
     }
     found.sort((a, b) => a.item.name.localeCompare(b.item.name));
     return found;
-  }, [data, q, includeTags, excludeTags]);
+  }, [data, hall, q, includeTags, excludeTags]);
 
   if (matches.length === 0) {
     return (
@@ -437,17 +436,17 @@ function SearchResults({ data, query, includeTags, excludeTags, favorites, onTog
                     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                   </svg>
                 </button>
-                <button onClick={() => onOpenReviews(m.item, m.hall)} className="min-w-0 text-left group">
+                <button onClick={() => onOpenReviews(m.item, hall)} className="min-w-0 text-left group">
                   <span className="block text-sm text-umd-black truncate group-hover:text-umd-red group-hover:underline">{m.item.name}</span>
-                  {summaries?.[m.hall]?.[m.item.food_item_id]?.count > 0 && (
+                  {summaries?.[hall]?.[m.item.food_item_id]?.count > 0 && (
                     <span className="flex items-center gap-1 mt-0.5">
-                      <StarRating value={summaries[m.hall][m.item.food_item_id].average} size="sm" />
+                      <StarRating value={summaries[hall][m.item.food_item_id].average} size="sm" />
                       <span className="text-[10px] text-umd-gray-dark">
-                        {summaries[m.hall][m.item.food_item_id].average} ({summaries[m.hall][m.item.food_item_id].count})
+                        {summaries[hall][m.item.food_item_id].average} ({summaries[hall][m.item.food_item_id].count})
                       </span>
                     </span>
                   )}
-                  <span className="block text-xs text-umd-gray-dark truncate">{m.hall} &middot; {m.meal} &middot; {m.station}</span>
+                  <span className="block text-xs text-umd-gray-dark truncate">{m.meal} &middot; {m.station}</span>
                 </button>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -934,6 +933,7 @@ export default function MenuPage() {
               {searchQuery.trim() ? (
                 <SearchResults
                   data={data}
+                  hall={activeHall}
                   query={searchQuery}
                   includeTags={includeTags}
                   excludeTags={excludeTags}

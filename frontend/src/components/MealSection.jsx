@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import FoodSearch from './FoodSearch';
+import ExternalLink from './ExternalLink';
 
 export default function MealSection({ title, logs, onLog, onDelete }) {
   const [expanded, setExpanded] = useState(true);
@@ -48,17 +49,15 @@ export default function MealSection({ title, logs, onLog, onDelete }) {
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-umd-black">{log.food_name}</span>
                   {log.label_url && (
-                    <a
+                    <ExternalLink
                       href={log.label_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
                       title="View full nutrition label"
                       className="text-umd-body hover:text-umd-red transition-colors"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M14 5h5m0 0v5m0-5L10 14M9 5H5v14h14v-4" />
                       </svg>
-                    </a>
+                    </ExternalLink>
                   )}
                 </div>
                 <div className="text-xs text-umd-body mt-0.5">

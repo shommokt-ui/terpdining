@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { apiGet } from '../api';
+import ExternalLink from './ExternalLink';
 
 const OZ_UNIT = /^(fl\s?oz|oz|ounce|ounces)$/;
 const COUNT_UNIT = /^(each|ea|slice|slices|piece|pieces|pc|pcs)$/;
@@ -272,17 +273,15 @@ export default function FoodSearch({ mealType, onLog }) {
               </span>
             </div>
             {variant.label_url && (
-              <a
+              <ExternalLink
                 href={variant.label_url}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-xs text-umd-red font-semibold hover:underline whitespace-nowrap"
               >
                 Full nutrition label
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M14 5h5m0 0v5m0-5L10 14M9 5H5v14h14v-4" />
                 </svg>
-              </a>
+              </ExternalLink>
             )}
           </div>
 
@@ -326,6 +325,7 @@ export default function FoodSearch({ mealType, onLog }) {
               ))}
               <input
                 type="number"
+                inputMode="decimal"
                 min="0"
                 step="0.25"
                 value={amount}
