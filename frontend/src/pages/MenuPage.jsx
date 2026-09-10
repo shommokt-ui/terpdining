@@ -124,6 +124,27 @@ function ItemBadges({ tags }) {
   );
 }
 
+// Opens the item's UMD nutrition-facts page (calories, macros, ingredients) in
+// a new tab. Rendered only when the scrape captured a label URL for the item.
+function NutritionLink({ url, className = '' }) {
+  if (!url) return null;
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      title="Nutrition facts & macros"
+      aria-label="Nutrition facts and macros"
+      className={`flex-shrink-0 p-0.5 text-umd-gray-dark hover:text-umd-red transition-colors ${className}`}
+    >
+      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6M9 11h6M9 15h4M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
+      </svg>
+    </a>
+  );
+}
+
 function ItemRow({ item, hall, isFav, onToggleFav, summary, onOpenReviews }) {
   return (
     <div className="px-4 py-1.5 flex items-center justify-between gap-2">
@@ -151,7 +172,10 @@ function ItemRow({ item, hall, isFav, onToggleFav, summary, onOpenReviews }) {
           )}
         </button>
       </div>
-      <ItemBadges tags={item.tags} />
+      <div className="flex items-center gap-1.5 flex-shrink-0">
+        <ItemBadges tags={item.tags} />
+        <NutritionLink url={item.label_url} />
+      </div>
     </div>
   );
 }
@@ -426,7 +450,10 @@ function SearchResults({ data, query, includeTags, excludeTags, favorites, onTog
                   <span className="block text-xs text-umd-gray-dark truncate">{m.hall} &middot; {m.meal} &middot; {m.station}</span>
                 </button>
               </div>
-              <ItemBadges tags={m.item.tags} />
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <ItemBadges tags={m.item.tags} />
+                <NutritionLink url={m.item.label_url} />
+              </div>
             </div>
           );
         })}
@@ -995,6 +1022,7 @@ export default function MenuPage() {
         open={selectedDish != null}
         foodItemId={selectedDish?.item?.food_item_id}
         foodName={selectedDish?.item?.name}
+        labelUrl={selectedDish?.item?.label_url}
         hall={selectedDish?.hall}
         onClose={() => setSelectedDish(null)}
         onChanged={refreshSummaries}

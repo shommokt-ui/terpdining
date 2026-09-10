@@ -34,6 +34,7 @@ def test_browse_groups_by_hall_meal_station(client, db):
     items = body["halls"]["South Campus"]["Lunch"]["Chef's Table"]
     assert [i["name"] for i in items] == ["Grilled Salmon"]
     assert items[0]["tags"] == ["HalalFriendly"]
+    assert items[0]["label_url"]  # links out to the UMD nutrition-facts page
     assert body["latest_date"] == "2026-07-21"
     # All seeded halls are listed even when only one has menu data.
     assert set(body["all_halls"]) == {"South Campus", "Yahentamitsi Dining Hall", "251 North"}

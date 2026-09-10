@@ -21,7 +21,7 @@ function formatDate(iso) {
   }
 }
 
-export default function DishReviewsModal({ open, foodItemId, foodName, hall, onClose, onChanged }) {
+export default function DishReviewsModal({ open, foodItemId, foodName, labelUrl, hall, onClose, onChanged }) {
   const { user } = useAuth();
   const toast = useToast();
   const [meta, setMeta] = useState({ average: null, count: 0 });
@@ -153,6 +153,19 @@ export default function DishReviewsModal({ open, foodItemId, foodName, hall, onC
                   <span className="text-xs text-umd-body">No reviews yet</span>
                 )}
               </div>
+            )}
+            {labelUrl && (
+              <a
+                href={labelUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 mt-1.5 text-xs text-umd-red font-semibold hover:underline"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6M9 11h6M9 15h4M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
+                </svg>
+                Nutrition facts &amp; macros
+              </a>
             )}
           </div>
           <button onClick={onClose} className="text-umd-gray-dark hover:text-umd-red p-1 rounded-lg hover:bg-umd-gray-light transition-colors shrink-0" aria-label="Close">

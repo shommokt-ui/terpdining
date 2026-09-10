@@ -19,7 +19,7 @@ def browse_menu(dt: str = Query(default=None)):
         rows = conn.execute(
             """\
             SELECT dh.name AS hall, me.meal, me.station,
-                   fi.name AS item_name, fi.id AS food_item_id
+                   fi.name AS item_name, fi.id AS food_item_id, fi.label_url
             FROM menu_entries me
             JOIN dining_halls dh ON dh.id = me.hall_id
             JOIN food_items fi   ON fi.id = me.food_item_id
@@ -52,6 +52,7 @@ def browse_menu(dt: str = Query(default=None)):
             halls[hall][meal][station].append({
                 "name": r["item_name"],
                 "food_item_id": r["food_item_id"],
+                "label_url": r["label_url"] or "",
                 "tags": tag_cache.get(r["food_item_id"], []),
             })
 
