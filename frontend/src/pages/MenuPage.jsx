@@ -858,9 +858,9 @@ export default function MenuPage() {
           )}
         </div>
       ) : !activeHall ? (
-        <div className="flex flex-col items-center py-16">
+        <div className="flex flex-col items-center py-16 px-4 text-center">
           <div className="text-5xl mb-4">🐢</div>
-          <h1 className="text-4xl umd-hero-title text-umd-black mb-2">{formatDisplayDate(date, today)}</h1>
+          <h1 className="text-3xl sm:text-4xl umd-hero-title text-umd-black mb-2 text-balance">{formatDisplayDate(date, today)}</h1>
           <p className="text-umd-body text-sm mb-8">Pick a dining hall to see what's cooking</p>
           <div className="flex flex-wrap gap-3 justify-center">
             {halls.map((h) => {
