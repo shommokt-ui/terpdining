@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/logo.svg" alt="TerpDining logo" width="96" height="96">
+</p>
+
 # 🐢 TerpDining
 
 [![CI](https://github.com/shommokt-ui/terpdining/actions/workflows/ci.yml/badge.svg)](https://github.com/shommokt-ui/terpdining/actions/workflows/ci.yml)
