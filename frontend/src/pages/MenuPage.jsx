@@ -387,56 +387,42 @@ function SearchBar({ value, onChange }) {
   );
 }
 
-function SearchResults({ data, defaultMeal, query, includeTags, excludeTags, favorites, onToggleFav, summaries, onOpenReviews }) {
+function SearchResults({ data, query, includeTags, excludeTags, favorites, onToggleFav, summaries, onOpenReviews }) {
   const q = query.trim().toLowerCase();
 
-  // All (hall, meal) matches for the query, deduped per (hall, meal).
-  const hits = useMemo(() => {
+  // One section per dining hall; within a hall a dish is the same item across
+  // meals, so it appears once, tagged with every meal it's served at that day.
+  const groups = useMemo(() => {
     if (!data || !q) return [];
     const order = data.all_halls?.length ? data.all_halls : Object.keys(data.halls);
-    const rows = [];
+    const out = [];
     for (const hall of order) {
+      const byItem = new Map();
       for (const [meal, stations] of Object.entries(data.halls[hall] || {})) {
-        const seen = new Set();
         for (const list of Object.values(stations)) {
           for (const item of list) {
             if (!item.name.toLowerCase().includes(q)) continue;
             if (includeTags.length > 0 && !includeTags.every((t) => item.tags.includes(t))) continue;
             if (excludeTags.length > 0 && excludeTags.some((t) => item.tags.includes(t))) continue;
-            if (seen.has(item.food_item_id)) continue;
-            seen.add(item.food_item_id);
-            rows.push({ hall, meal, item });
+            const entry = byItem.get(item.food_item_id) || { item, meals: new Set() };
+            entry.meals.add(meal);
+            byItem.set(item.food_item_id, entry);
           }
         }
       }
+      if (byItem.size) {
+        const items = [...byItem.values()]
+          .map((e) => ({ item: e.item, meals: MEAL_ORDER.filter((m) => e.meals.has(m)) }))
+          .sort((a, b) => a.item.name.localeCompare(b.item.name));
+        out.push({ hall, items });
+      }
     }
-    return rows;
+    return out;
   }, [data, q, includeTags, excludeTags]);
-
-  const mealsWithHits = MEAL_ORDER.filter((m) => hits.some((h) => h.meal === m));
-
-  // Filter results to one meal — a dish only offered at dinner shouldn't surface
-  // when you're looking at lunch. Defaults to the meal already in view.
-  const [meal, setMeal] = useState(null);
-  const wantMeal = mealsWithHits.includes(defaultMeal) ? defaultMeal : mealsWithHits[0] ?? null;
-  const activeSearchMeal = meal && mealsWithHits.includes(meal) ? meal : wantMeal;
-
-  // One section per dining hall; within a hall the item is identical across
-  // stations, so it appears once. Cheap derive over the small hits array.
-  const hallOrder = data?.all_halls?.length ? data.all_halls : Object.keys(data?.halls || {});
-  const groups = hallOrder
-    .map((hall) => ({
-      hall,
-      items: hits
-        .filter((h) => h.hall === hall && h.meal === activeSearchMeal)
-        .map((h) => h.item)
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    }))
-    .filter((g) => g.items.length);
 
   const total = groups.reduce((n, g) => n + g.items.length, 0);
 
-  if (hits.length === 0) {
+  if (total === 0) {
     return (
       <div className="text-center py-10 text-umd-body text-sm">
         No menu items match "{query}" today.
@@ -446,29 +432,14 @@ function SearchResults({ data, defaultMeal, query, includeTags, excludeTags, fav
 
   return (
     <div className="space-y-4">
-      {mealsWithHits.length > 1 && (
-        <div className="flex flex-wrap gap-2">
-          {mealsWithHits.map((m) => (
-            <button
-              key={m}
-              onClick={() => setMeal(m)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                activeSearchMeal === m ? 'bg-umd-red text-white' : 'bg-umd-gray-light text-umd-body hover:bg-umd-gray'
-              }`}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
-      )}
       <div className="text-xs text-umd-body">
-        <span className="font-semibold text-umd-black">{total}</span> item{total === 1 ? '' : 's'} match "{query}" at {activeSearchMeal}
+        <span className="font-semibold text-umd-black">{total}</span> item{total === 1 ? '' : 's'} match "{query}"
       </div>
       {groups.map((g) => (
         <div key={g.hall} className="space-y-1.5">
           <div className="text-xs font-bold text-umd-black px-1">{g.hall}</div>
           <div className="umd-card rounded-xl divide-y divide-umd-gray-light overflow-hidden">
-            {g.items.map((item) => {
+            {g.items.map(({ item, meals }) => {
               const isFav = favorites.has(item.name);
               const summary = summaries?.[g.hall]?.[item.food_item_id];
               return (
@@ -485,6 +456,9 @@ function SearchResults({ data, defaultMeal, query, includeTags, excludeTags, fav
                     </button>
                     <button onClick={() => onOpenReviews(item, g.hall)} className="min-w-0 text-left group">
                       <span className="block text-sm text-umd-black truncate group-hover:text-umd-red group-hover:underline">{item.name}</span>
+                      <span className="block text-[11px] text-umd-gray-dark truncate">
+                        {meals.map((m) => `${m} ${mealTimeLabel(m)}`).join(' · ')}
+                      </span>
                       {summary?.count > 0 && (
                         <span className="flex items-center gap-1 mt-0.5">
                           <StarRating value={summary.average} size="sm" />
@@ -981,7 +955,6 @@ export default function MenuPage() {
               {searchQuery.trim() ? (
                 <SearchResults
                   data={data}
-                  defaultMeal={activeMeal}
                   query={searchQuery}
                   includeTags={includeTags}
                   excludeTags={excludeTags}
