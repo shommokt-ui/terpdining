@@ -25,6 +25,7 @@ class FoodLogOut(BaseModel):
     id: int
     food_item_id: int
     food_name: str
+    label_url: str | None
     servings: float
     portion_label: str | None
     meal_type: str
@@ -160,7 +161,7 @@ def get_logs(
 
     rows = conn.execute(
         """\
-        SELECT fl.id, fl.food_item_id, fi.name AS food_name,
+        SELECT fl.id, fl.food_item_id, fi.name AS food_name, fi.label_url,
                fl.servings, fl.portion_label, fl.meal_type, fl.logged_date,
                fn.calories, fn.protein_g, fn.total_fat_g, fn.total_carbs_g
         FROM food_logs fl
@@ -179,6 +180,7 @@ def get_logs(
             "id": r["id"],
             "food_item_id": r["food_item_id"],
             "food_name": r["food_name"],
+            "label_url": r["label_url"] or None,
             "servings": servings,
             "portion_label": r["portion_label"],
             "meal_type": r["meal_type"],

@@ -45,7 +45,22 @@ export default function MealSection({ title, logs, onLog, onDelete }) {
           {logs.map((log) => (
             <div key={log.id} className="flex items-center justify-between py-2 border-b border-umd-gray-light last:border-b-0">
               <div>
-                <div className="text-sm font-medium text-umd-black">{log.food_name}</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-umd-black">{log.food_name}</span>
+                  {log.label_url && (
+                    <a
+                      href={log.label_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="View full nutrition label"
+                      className="text-umd-body hover:text-umd-red transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14 5h5m0 0v5m0-5L10 14M9 5H5v14h14v-4" />
+                      </svg>
+                    </a>
+                  )}
+                </div>
                 <div className="text-xs text-umd-body mt-0.5">
                   {log.portion_label || `${log.servings} serving${log.servings !== 1 ? 's' : ''}`} · {Math.round(log.calories || 0)} cal · {Math.round(log.protein_g || 0)}g P · {Math.round(log.total_fat_g || 0)}g F · {Math.round(log.total_carbs_g || 0)}g C
                 </div>
