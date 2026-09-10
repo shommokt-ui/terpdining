@@ -2,7 +2,7 @@
   <img src="docs/logo.svg" alt="TerpDining logo" width="96" height="96">
 </p>
 
-# 🐢 TerpDining
+# TerpDining
 
 [![CI](https://github.com/shommokt-ui/terpdining/actions/workflows/ci.yml/badge.svg)](https://github.com/shommokt-ui/terpdining/actions/workflows/ci.yml)
 
@@ -15,7 +15,7 @@ Maryland.
 
 | Menu | Tracker | Recipe Creator |
 |---|---|---|
-| <img src="docs/screenshots/menu.gif" alt="Menu" width="300"> | <img src="docs/screenshots/tracker.png" alt="Tracker" width="300"> | <img src="docs/screenshots/recipe.png" alt="Recipe" width="300"> |
+| ![Menu](docs/screenshots/menu.png) | ![Tracker](docs/screenshots/tracker.png) | ![Recipe](docs/screenshots/recipe.png) |
 
 ## What it does
 
