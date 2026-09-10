@@ -137,9 +137,6 @@ export default function DishReviewsModal({ open, foodItemId, foodName, labelUrl,
         <div className="flex items-start justify-between px-5 py-4 border-b border-umd-gray gap-3">
           <div className="min-w-0">
             <h2 className="text-base font-bold text-umd-black truncate">{foodName}</h2>
-            {hall && (
-              <div className="text-[11px] text-umd-gray-dark truncate">at {hall.replace(' Dining Hall', '')}</div>
-            )}
             {!loading && (
               <div className="flex items-center gap-2 mt-1">
                 {meta.count > 0 ? (
