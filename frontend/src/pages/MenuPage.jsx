@@ -387,28 +387,56 @@ function SearchBar({ value, onChange }) {
   );
 }
 
-function SearchResults({ data, hall, query, includeTags, excludeTags, favorites, onToggleFav, summaries, onOpenReviews }) {
+function SearchResults({ data, defaultMeal, query, includeTags, excludeTags, favorites, onToggleFav, summaries, onOpenReviews }) {
   const q = query.trim().toLowerCase();
-  const matches = useMemo(() => {
-    if (!data || !q || !hall) return [];
-    const found = [];
-    // Only the hall the user is viewing — a dish scraped at another hall is a
-    // different recipe with its own portion and macros.
-    for (const [meal, stations] of Object.entries(data.halls[hall] || {})) {
-      for (const [station, items] of Object.entries(stations)) {
-        for (const item of items) {
-          if (!item.name.toLowerCase().includes(q)) continue;
-          if (includeTags.length > 0 && !includeTags.every((t) => item.tags.includes(t))) continue;
-          if (excludeTags.length > 0 && excludeTags.some((t) => item.tags.includes(t))) continue;
-          found.push({ item, meal, station });
+
+  // All (hall, meal) matches for the query, deduped per (hall, meal).
+  const hits = useMemo(() => {
+    if (!data || !q) return [];
+    const order = data.all_halls?.length ? data.all_halls : Object.keys(data.halls);
+    const rows = [];
+    for (const hall of order) {
+      for (const [meal, stations] of Object.entries(data.halls[hall] || {})) {
+        const seen = new Set();
+        for (const list of Object.values(stations)) {
+          for (const item of list) {
+            if (!item.name.toLowerCase().includes(q)) continue;
+            if (includeTags.length > 0 && !includeTags.every((t) => item.tags.includes(t))) continue;
+            if (excludeTags.length > 0 && excludeTags.some((t) => item.tags.includes(t))) continue;
+            if (seen.has(item.food_item_id)) continue;
+            seen.add(item.food_item_id);
+            rows.push({ hall, meal, item });
+          }
         }
       }
     }
-    found.sort((a, b) => a.item.name.localeCompare(b.item.name));
-    return found;
-  }, [data, hall, q, includeTags, excludeTags]);
+    return rows;
+  }, [data, q, includeTags, excludeTags]);
 
-  if (matches.length === 0) {
+  const mealsWithHits = MEAL_ORDER.filter((m) => hits.some((h) => h.meal === m));
+
+  // Filter results to one meal — a dish only offered at dinner shouldn't surface
+  // when you're looking at lunch. Defaults to the meal already in view.
+  const [meal, setMeal] = useState(null);
+  const wantMeal = mealsWithHits.includes(defaultMeal) ? defaultMeal : mealsWithHits[0] ?? null;
+  const activeSearchMeal = meal && mealsWithHits.includes(meal) ? meal : wantMeal;
+
+  // One section per dining hall; within a hall the item is identical across
+  // stations, so it appears once. Cheap derive over the small hits array.
+  const hallOrder = data?.all_halls?.length ? data.all_halls : Object.keys(data?.halls || {});
+  const groups = hallOrder
+    .map((hall) => ({
+      hall,
+      items: hits
+        .filter((h) => h.hall === hall && h.meal === activeSearchMeal)
+        .map((h) => h.item)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    }))
+    .filter((g) => g.items.length);
+
+  const total = groups.reduce((n, g) => n + g.items.length, 0);
+
+  if (hits.length === 0) {
     return (
       <div className="text-center py-10 text-umd-body text-sm">
         No menu items match "{query}" today.
@@ -417,46 +445,66 @@ function SearchResults({ data, hall, query, includeTags, excludeTags, favorites,
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
+      {mealsWithHits.length > 1 && (
+        <div className="flex flex-wrap gap-2">
+          {mealsWithHits.map((m) => (
+            <button
+              key={m}
+              onClick={() => setMeal(m)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                activeSearchMeal === m ? 'bg-umd-red text-white' : 'bg-umd-gray-light text-umd-body hover:bg-umd-gray'
+              }`}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="text-xs text-umd-body">
-        <span className="font-semibold text-umd-black">{matches.length}</span> item{matches.length === 1 ? '' : 's'} match "{query}"
+        <span className="font-semibold text-umd-black">{total}</span> item{total === 1 ? '' : 's'} match "{query}" at {activeSearchMeal}
       </div>
-      <div className="umd-card rounded-xl divide-y divide-umd-gray-light overflow-hidden">
-        {matches.map((m, i) => {
-          const isFav = favorites.has(m.item.name);
-          return (
-            <div key={i} className="px-4 py-2.5 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <button
-                  onClick={() => onToggleFav(m.item.name)}
-                  className="flex-shrink-0 p-0.5 transition-colors"
-                  title={isFav ? 'Remove from favorites' : 'Add to favorites'}
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill={isFav ? '#e21833' : 'none'} stroke={isFav ? '#e21833' : '#d1d5db'} strokeWidth={2}>
-                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                  </svg>
-                </button>
-                <button onClick={() => onOpenReviews(m.item, hall)} className="min-w-0 text-left group">
-                  <span className="block text-sm text-umd-black truncate group-hover:text-umd-red group-hover:underline">{m.item.name}</span>
-                  {summaries?.[hall]?.[m.item.food_item_id]?.count > 0 && (
-                    <span className="flex items-center gap-1 mt-0.5">
-                      <StarRating value={summaries[hall][m.item.food_item_id].average} size="sm" />
-                      <span className="text-[10px] text-umd-gray-dark">
-                        {summaries[hall][m.item.food_item_id].average} ({summaries[hall][m.item.food_item_id].count})
-                      </span>
-                    </span>
-                  )}
-                  <span className="block text-xs text-umd-gray-dark truncate">{m.meal} &middot; {m.station}</span>
-                </button>
-              </div>
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                <ItemBadges tags={m.item.tags} />
-                <NutritionLink url={m.item.label_url} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      {groups.map((g) => (
+        <div key={g.hall} className="space-y-1.5">
+          <div className="text-xs font-bold text-umd-black px-1">{g.hall}</div>
+          <div className="umd-card rounded-xl divide-y divide-umd-gray-light overflow-hidden">
+            {g.items.map((item) => {
+              const isFav = favorites.has(item.name);
+              const summary = summaries?.[g.hall]?.[item.food_item_id];
+              return (
+                <div key={item.food_item_id} className="px-4 py-2.5 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <button
+                      onClick={() => onToggleFav(item.name)}
+                      className="flex-shrink-0 p-0.5 transition-colors"
+                      title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+                    >
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill={isFav ? '#e21833' : 'none'} stroke={isFav ? '#e21833' : '#d1d5db'} strokeWidth={2}>
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                      </svg>
+                    </button>
+                    <button onClick={() => onOpenReviews(item, g.hall)} className="min-w-0 text-left group">
+                      <span className="block text-sm text-umd-black truncate group-hover:text-umd-red group-hover:underline">{item.name}</span>
+                      {summary?.count > 0 && (
+                        <span className="flex items-center gap-1 mt-0.5">
+                          <StarRating value={summary.average} size="sm" />
+                          <span className="text-[10px] text-umd-gray-dark">
+                            {summary.average} ({summary.count})
+                          </span>
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <ItemBadges tags={item.tags} />
+                    <NutritionLink url={item.label_url} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -933,7 +981,7 @@ export default function MenuPage() {
               {searchQuery.trim() ? (
                 <SearchResults
                   data={data}
-                  hall={activeHall}
+                  defaultMeal={activeMeal}
                   query={searchQuery}
                   includeTags={includeTags}
                   excludeTags={excludeTags}
