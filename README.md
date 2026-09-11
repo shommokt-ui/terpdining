@@ -17,7 +17,7 @@ Maryland.
 
 | Menu | Tracker | Recipe Creator |
 |---|---|---|
-| ![Menu](docs/screenshots/menu.png) | ![Tracker](docs/screenshots/tracker.png) | ![Recipe](docs/screenshots/recipe.png) |
+| ![Menu](docs/screenshots/menu.gif) | ![Tracker](docs/screenshots/tracker.png) | ![Recipe](docs/screenshots/recipe.png) |
 
 ## What it does
 
