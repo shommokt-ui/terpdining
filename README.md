@@ -11,6 +11,8 @@ what's actually on the menu today, on web, iOS, and Android. Unofficial
 student project, not affiliated with or endorsed by the University of
 Maryland.
 
+**Live: [terpdining-web.onrender.com](https://terpdining-web.onrender.com/)**
+
 ## Screenshots
 
 | Menu | Tracker | Recipe Creator |
@@ -34,19 +36,3 @@ Maryland.
 | Recipes  | LangChain + OpenAI |
 | Scraping | BeautifulSoup, requests, APScheduler |
 | Data     | nutrition.umd.edu |
-
-## Running it locally
-
-Needs Python 3.11+, Node 18+, and an OpenAI key (only for `/api/recipe`).
-
-```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env          # fill in OPENAI_API_KEY
-
-python run_scraper.py         # seed menu data
-cd frontend && npm install && cd ..
-
-python -m uvicorn server:app --reload   # http://127.0.0.1:8000
-cd frontend && npm run dev              # http://localhost:5173
-```
