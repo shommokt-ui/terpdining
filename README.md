@@ -32,7 +32,7 @@ Maryland.
 |---|---|
 | Backend  | FastAPI, SQLite, JWT auth, bcrypt |
 | Frontend | React 19, Vite, Tailwind v4, React Router |
-| Mobile   | Capacitor (iOS + Android) |
+| Mobile   | Capacitor (iOS) |
 | Recipes  | LangChain + OpenAI |
 | Scraping | BeautifulSoup, requests, APScheduler |
 | Data     | nutrition.umd.edu |
