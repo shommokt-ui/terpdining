@@ -1,5 +1,5 @@
+import AuthLink from './AuthLink';
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
 import { apiGet, apiPost } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -178,13 +178,13 @@ export default function DishReviewsModal({ open, foodItemId, foodName, labelUrl,
               <p className="text-xs text-umd-body">
                 Sign in to post. You can still choose to show up as "Anonymous".
               </p>
-              <Link
+              <AuthLink
                 to="/login"
                 onClick={onClose}
                 className="inline-block bg-umd-red hover:bg-umd-red-dark text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
               >
                 Sign in
-              </Link>
+              </AuthLink>
             </div>
           ) : (
           <form onSubmit={handleSubmit} className="umd-card rounded-xl p-4 space-y-3">

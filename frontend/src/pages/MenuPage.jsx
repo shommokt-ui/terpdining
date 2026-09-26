@@ -585,14 +585,17 @@ export default function MenuPage() {
 
   const toast = useToast();
   const { user } = useAuth();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [menuResult, setMenuResult] = useState(null);
+  const [menuAttempt, setMenuAttempt] = useState(0);
+  const loading = menuResult?.date !== date || menuResult?.attempt !== menuAttempt;
+  const data = loading ? null : menuResult.data;
+  const menuError = loading ? '' : menuResult.error;
   const [favorites, setFavorites] = useState(() => new Set());
   const [expandSignal, setExpandSignal] = useState({ version: 0, open: true });
   const [summaries, setSummaries] = useState({});
   const [selectedDish, setSelectedDish] = useState(null);
 
-  const openReviews = useCallback((item, hall) => setSelectedDish({ item, hall }), []);
+  const openReviews = (item, hall) => setSelectedDish({ item, hall });
 
   useEffect(() => {
     patchMenu({ favoritesCount: favorites.size });
@@ -611,7 +614,7 @@ export default function MenuPage() {
   }, [user]);
 
   useEffect(() => {
-    if (!user) { setFavorites(new Set()); return; }
+    if (!user) return;
     (async () => {
       try {
         const rows = await apiGet('/api/favorites');
@@ -688,16 +691,20 @@ export default function MenuPage() {
     }
   }
 
-  const fetchMenu = useCallback(async () => {
-    setLoading(true);
-    try {
-      const resp = await apiGet(`/api/menu/browse?dt=${date}`);
-      setData(resp);
-    } catch { setData(null); }
-    finally { setLoading(false); }
-  }, [date]);
-
-  useEffect(() => { fetchMenu(); }, [fetchMenu]);
+  useEffect(() => {
+    const controller = new AbortController();
+    // Cancel the old date's request so slow responses cannot replace a newer menu.
+    apiGet(`/api/menu/browse?dt=${date}`, { signal: controller.signal })
+      .then((resp) => {
+        if (!controller.signal.aborted) setMenuResult({ date, attempt: menuAttempt, data: resp, error: '' });
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) {
+          setMenuResult({ date, attempt: menuAttempt, data: null, error: error.message });
+        }
+      });
+    return () => controller.abort();
+  }, [date, menuAttempt]);
 
   // Ratings are scoped per dining hall (the same dish id can be reviewed
   // separately at each hall), so collect item ids grouped by hall.
@@ -716,25 +723,25 @@ export default function MenuPage() {
     return map;
   }, [data]);
 
-  const refreshSummaries = useCallback(async () => {
-    const halls = Object.keys(itemIdsByHall);
-    if (halls.length === 0) { setSummaries({}); return; }
-    try {
-      const entries = await Promise.all(
-        halls.map(async (hall) => {
-          const ids = itemIdsByHall[hall];
-          if (!ids.length) return [hall, {}];
-          const resp = await apiGet(
-            `/api/reviews/summary?ids=${ids.join(',')}&hall=${encodeURIComponent(hall)}`,
-          );
-          return [hall, resp || {}];
-        }),
+  const refreshSummaries = useCallback((signal) => {
+    const entries = Object.entries(itemIdsByHall).map(async ([hall, ids]) => {
+      if (!ids.length) return [hall, {}];
+      const resp = await apiGet(
+        `/api/reviews/summary?ids=${ids.join(',')}&hall=${encodeURIComponent(hall)}`,
+        { signal },
       );
-      setSummaries(Object.fromEntries(entries));
-    } catch { /* ignore */ }
+      return [hall, resp || {}];
+    });
+    return Promise.all(entries)
+      .then((rows) => { if (!signal?.aborted) setSummaries(Object.fromEntries(rows)); })
+      .catch(() => { /* Ratings are optional; a failed request must not hide the menu. */ });
   }, [itemIdsByHall]);
 
-  useEffect(() => { refreshSummaries(); }, [refreshSummaries]);
+  useEffect(() => {
+    const controller = new AbortController();
+    refreshSummaries(controller.signal);
+    return () => controller.abort();
+  }, [refreshSummaries]);
 
   // Auto-open the preferred hall (Settings) on first visit; never overrides a hall the
   // user has already picked, since activeHall persists in navigation state.
@@ -792,6 +799,12 @@ export default function MenuPage() {
     <div className="umd-container px-4 py-6 space-y-5">
       {loading ? (
         <MenuSkeleton />
+      ) : menuError ? (
+        <div className="py-16 text-center space-y-4">
+          <h2 className="text-2xl umd-hero-title">Unable to load the menu</h2>
+          <p role="alert" className="text-sm text-umd-body">{menuError}</p>
+          <button onClick={() => setMenuAttempt((value) => value + 1)} className="min-h-11 px-4 py-2 rounded-lg bg-umd-red text-white font-semibold">Try again</button>
+        </div>
       ) : !data || hallsWithData.length === 0 ? (
         <div className="flex flex-col items-center text-center py-16 px-4">
           <div className="text-6xl mb-4">🐢</div>

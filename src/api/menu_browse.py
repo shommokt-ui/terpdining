@@ -30,13 +30,18 @@ def browse_menu(dt: str = Query(default=None)):
         ).fetchall()
 
         tag_cache: dict[int, list[str]] = {}
-        for r in rows:
-            fid = r["food_item_id"]
-            if fid not in tag_cache:
-                tags = conn.execute(
-                    "SELECT tag FROM food_item_tags WHERE food_item_id = ?", (fid,)
-                ).fetchall()
-                tag_cache[fid] = [t["tag"] for t in tags]
+        # Fetch tags in one query. Querying once per dish adds hundreds of
+        # round trips when the production database is on a separate server.
+        tags = conn.execute(
+            """SELECT DISTINCT ft.food_item_id, ft.tag
+               FROM food_item_tags ft
+               JOIN menu_entries me ON me.food_item_id = ft.food_item_id
+               WHERE me.date = ?
+               ORDER BY ft.food_item_id, ft.tag""",
+            (menu_date,),
+        ).fetchall()
+        for tag in tags:
+            tag_cache.setdefault(tag["food_item_id"], []).append(tag["tag"])
 
         halls: dict = {}
         for r in rows:

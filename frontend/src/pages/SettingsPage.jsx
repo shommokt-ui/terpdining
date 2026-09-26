@@ -1,3 +1,4 @@
+import AuthLink from '../components/AuthLink';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { apiPost } from '../api';
@@ -101,8 +102,8 @@ export default function SettingsPage() {
             <p className="text-xs text-umd-body">Sign in to save favorites, track macros, and use recipes.</p>
           </div>
           <div className="flex items-center gap-2">
-            <Link to="/login" className="border border-umd-gray text-umd-black hover:border-umd-red hover:text-umd-red font-semibold px-4 py-2 rounded-lg text-sm transition-colors">Log In</Link>
-            <Link to="/register" className="bg-umd-red hover:bg-umd-red-dark text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors">Sign Up</Link>
+            <AuthLink to="/login" className="border border-umd-gray text-umd-black hover:border-umd-red hover:text-umd-red font-semibold px-4 py-2 rounded-lg text-sm transition-colors">Log In</AuthLink>
+            <AuthLink to="/register" className="bg-umd-red hover:bg-umd-red-dark text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors">Sign Up</AuthLink>
           </div>
         </div>
       )}

@@ -48,3 +48,15 @@ def test_browse_empty_date_returns_no_halls(client, db):
     assert body["halls"] == {}
     # latest_date still reports the newest scraped menu so the UI can explain the gap.
     assert body["latest_date"] == "2026-07-21"
+
+
+def test_shared_dish_has_tags_once_per_menu_entry(client, db):
+    food_id = seed_food(db, name='Shared Dish')
+    db.execute('INSERT INTO food_item_tags (food_item_id, tag) VALUES (?, ?)', (food_id, 'Vegan'))
+    db.commit()
+    _seed_menu_entry(db, food_id, meal='Lunch')
+    _seed_menu_entry(db, food_id, meal='Dinner')
+    body = client.get('/api/menu/browse?dt=2026-07-21').json()
+    for meal in ('Lunch', 'Dinner'):
+        items = body['halls']['South Campus'][meal]["Chef's Table"]
+        assert items[0]['tags'] == ['Vegan']

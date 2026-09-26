@@ -1,13 +1,19 @@
+# AI recipe generation: ChatOpenAI sends the selected menu and request to OpenAI.
 langchain[openai]
+# Scraping: parse menu HTML, read local config, and make HTTP requests.
 bs4
 python-dotenv
 requests
+# Web API: routes/validation plus the ASGI server that runs them.
 fastapi
 uvicorn[standard]
+# Authentication: sign/verify JWTs and hash passwords (bcrypt is imported directly).
 python-jose[cryptography]
-passlib[bcrypt]
-python-multipart
+bcrypt
+# EmailStr validation for account addresses.
 pydantic[email]
+# Background menu refresh and optional password-reset email delivery.
 apscheduler
 resend
+# Production PostgreSQL driver. Local development uses Python's built-in sqlite3.
 psycopg[binary]

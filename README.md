@@ -36,3 +36,8 @@ Maryland.
 | Recipes  | LangChain + OpenAI |
 | Scraping | BeautifulSoup, requests, APScheduler |
 | Data     | nutrition.umd.edu |
+
+## Developer guides
+
+- [Frontend packages and iOS build steps](frontend/README.md)
+- [Backend packages and source layout](docs/dependencies.md)

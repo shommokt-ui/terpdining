@@ -6,10 +6,11 @@ import logging
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
+from typing import Annotated
 
 import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import AfterValidator, BaseModel, EmailStr, Field
 
 from src.api.deps import create_access_token, get_current_user, get_db
 
@@ -117,12 +118,27 @@ def _hash_password(password: str) -> str:
 
 
 def _verify_password(password: str, hashed: str) -> bool:
+    # bcrypt accepts at most 72 bytes, which is fewer than 72 characters for
+    # some Unicode passwords. Invalid login input must not become a server error.
+    if len(password.encode("utf-8")) > 72:
+        return False
     return bcrypt.checkpw(password.encode(), hashed.encode())
+
+
+def _validate_password_bytes(password: str) -> str:
+    if len(password.encode("utf-8")) > 72:
+        raise ValueError("Password must be at most 72 UTF-8 bytes")
+    return password
+
+
+NewPassword = Annotated[
+    str, Field(min_length=PASSWORD_MIN_LEN), AfterValidator(_validate_password_bytes)
+]
 
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: NewPassword
 
 
 class LoginRequest(BaseModel):
@@ -205,7 +221,7 @@ def _ensure_password_resets_table(conn):
 
 class ChangePasswordRequest(BaseModel):
     current_password: str
-    new_password: str = Field(..., min_length=PASSWORD_MIN_LEN)
+    new_password: NewPassword
 
 
 class DeleteAccountRequest(BaseModel):
@@ -298,7 +314,7 @@ def forgot_password(body: ForgotPasswordRequest, conn=Depends(get_db)):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str = Field(..., min_length=PASSWORD_MIN_LEN)
+    new_password: NewPassword
 
 
 @router.post("/reset-password")

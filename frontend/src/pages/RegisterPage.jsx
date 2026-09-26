@@ -1,5 +1,8 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { authReturnTo } from '../lib/authNavigation';
+import AuthBackLink from '../components/AuthBackLink';
+import AuthLink from '../components/AuthLink';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiPost } from '../api';
 
@@ -10,7 +13,11 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const requestRef = useRef(null);
+  // Leaving an account form must also cancel its pending sign-in response.
+  useEffect(() => () => requestRef.current?.abort(), []);
   const navigate = useNavigate();
+  const location = useLocation();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -19,21 +26,26 @@ export default function RegisterPage() {
       setError('Passwords do not match.');
       return;
     }
+    if (loading) return;
     setLoading(true);
+    const controller = new AbortController();
+    requestRef.current = controller;
     try {
-      const data = await apiPost('/api/auth/register', { email, password });
+      const data = await apiPost('/api/auth/register', { email, password }, { signal: controller.signal });
+      if (controller.signal.aborted) return;
       login(data.access_token, data.user);
-      navigate('/menu');
+      navigate(authReturnTo(location), { replace: true });
     } catch (err) {
-      setError(err.message);
+      if (!controller.signal.aborted) setError(err.message);
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   }
 
   return (
     <div className="min-h-[calc(100vh-5.5rem)] flex items-center justify-center px-4">
       <div className="umd-card rounded-2xl w-full max-w-md p-8">
+        <AuthBackLink />
         <h1 className="text-3xl umd-hero-title mb-1">Create your account</h1>
         <p className="text-umd-body text-sm mb-6">Get started with TerpDining</p>
 
@@ -99,9 +111,9 @@ export default function RegisterPage() {
 
         <p className="mt-6 text-center text-sm text-umd-body">
           Already have an account?{' '}
-          <Link to="/login" className="text-umd-red font-semibold hover:underline">
+          <AuthLink to="/login" className="text-umd-red font-semibold hover:underline">
             Sign in
-          </Link>
+          </AuthLink>
         </p>
       </div>
     </div>

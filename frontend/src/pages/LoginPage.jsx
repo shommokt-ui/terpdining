@@ -1,5 +1,8 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { authReturnTo } from '../lib/authNavigation';
+import AuthBackLink from '../components/AuthBackLink';
+import AuthLink from '../components/AuthLink';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { apiPost } from '../api';
@@ -53,20 +56,28 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const requestRef = useRef(null);
+  // Leaving an account form must also cancel its pending sign-in response.
+  useEffect(() => () => requestRef.current?.abort(), []);
   const navigate = useNavigate();
+  const location = useLocation();
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    if (loading) return;
     setLoading(true);
+    const controller = new AbortController();
+    requestRef.current = controller;
     try {
-      const data = await apiPost('/api/auth/login', { email, password });
+      const data = await apiPost('/api/auth/login', { email, password }, { signal: controller.signal });
+      if (controller.signal.aborted) return;
       login(data.access_token, data.user);
-      navigate('/menu');
+      navigate(authReturnTo(location), { replace: true });
     } catch (err) {
-      setError(err.message);
+      if (!controller.signal.aborted) setError(err.message);
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   }
 
@@ -102,8 +113,9 @@ export default function LoginPage() {
       </div>
 
       {/* form panel */}
-      <div className="w-full md:w-1/2 lg:w-2/5 flex items-center justify-center px-4 py-10">
+      <div className="w-full md:w-1/2 lg:w-2/5 flex items-center justify-center px-4 pt-[calc(env(safe-area-inset-top)+4rem)] pb-10">
         <div className="w-full max-w-md">
+          <AuthBackLink />
           <div className="md:hidden flex items-center gap-2 text-umd-black font-extrabold text-lg uppercase tracking-wide mb-6">
             <Logo className="w-7 h-7" />
             TerpDining
@@ -111,9 +123,9 @@ export default function LoginPage() {
 
           <div className="flex items-baseline justify-between mb-6">
             <h1 className="text-3xl umd-hero-title">Sign in</h1>
-            <Link to="/register" className="text-xs text-umd-body">
+            <AuthLink to="/register" className="text-xs text-umd-body">
               New user? <span className="font-semibold text-umd-red hover:underline">Create an account</span>
-            </Link>
+            </AuthLink>
           </div>
 
           {error && (
@@ -135,7 +147,6 @@ export default function LoginPage() {
                 <input
                   type="email"
                   required
-                  autoFocus
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
@@ -177,9 +188,9 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-4 text-center">
-            <Link to="/forgot-password" className="text-xs text-umd-body hover:text-umd-red hover:underline">
+            <AuthLink to="/forgot-password" className="text-xs text-umd-body hover:text-umd-red hover:underline">
               Forgot password?
-            </Link>
+            </AuthLink>
           </div>
 
           <p className="mt-6 text-center text-xs text-umd-gray-dark">

@@ -1,5 +1,6 @@
+import AuthBackLink from '../components/AuthBackLink';
+import AuthLink from '../components/AuthLink';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { apiPost } from '../api';
 
 export default function ForgotPasswordPage() {
@@ -25,6 +26,7 @@ export default function ForgotPasswordPage() {
   return (
     <div className="min-h-[calc(100vh-5.5rem)] flex items-center justify-center px-4">
       <div className="umd-card rounded-2xl w-full max-w-md p-8">
+        <AuthBackLink />
         <h1 className="text-3xl umd-hero-title mb-1">Forgot password</h1>
         <p className="text-umd-body text-sm mb-6">
           We'll send you a reset link if an account with that email exists.
@@ -36,12 +38,12 @@ export default function ForgotPasswordPage() {
               If <span className="font-semibold">{email}</span> is registered, a reset link is on its way.
               Check your inbox (and spam folder).
             </div>
-            <Link
+            <AuthLink
               to="/login"
               className="block text-center text-sm font-semibold text-umd-red hover:underline"
             >
               Back to sign in
-            </Link>
+            </AuthLink>
           </div>
         ) : (
           <>
@@ -71,9 +73,9 @@ export default function ForgotPasswordPage() {
             </form>
             <p className="mt-6 text-center text-sm text-umd-body">
               Remembered it?{' '}
-              <Link to="/login" className="text-umd-red font-semibold hover:underline">
+              <AuthLink to="/login" className="text-umd-red font-semibold hover:underline">
                 Sign in
-              </Link>
+              </AuthLink>
             </p>
           </>
         )}

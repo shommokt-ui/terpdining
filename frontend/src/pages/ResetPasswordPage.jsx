@@ -1,5 +1,6 @@
+import AuthLink from '../components/AuthLink';
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { apiPost } from '../api';
 import { useAuth } from '../context/AuthContext';
 
@@ -47,12 +48,12 @@ export default function ResetPasswordPage() {
           <p className="text-umd-body text-sm mb-6">
             This page needs a reset link. Request a new one from the forgot-password screen.
           </p>
-          <Link
+          <AuthLink
             to="/forgot-password"
             className="inline-block px-4 py-2 rounded-lg text-sm font-semibold bg-umd-red text-white hover:bg-umd-red-dark transition-colors"
           >
             Get a reset link
-          </Link>
+          </AuthLink>
         </div>
       </div>
     );
@@ -102,9 +103,9 @@ export default function ResetPasswordPage() {
         </form>
 
         <p className="mt-6 text-center text-sm text-umd-body">
-          <Link to="/login" className="text-umd-red font-semibold hover:underline">
+          <AuthLink to="/login" className="text-umd-red font-semibold hover:underline">
             Back to sign in
-          </Link>
+          </AuthLink>
         </p>
       </div>
     </div>

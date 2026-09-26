@@ -24,6 +24,7 @@ def _get_llm():
 
 
 class RecipeRequest(BaseModel):
+    ai_consent: bool = False
     session_id: int | None = None
     message: str | None = None
     hall: str | None = None
@@ -178,6 +179,9 @@ You help students create delicious meals and recipe combinations using the ingre
 
 @router.post("/recipe", response_model=RecipeResponse)
 def recipe(body: RecipeRequest, user=Depends(get_current_user), conn=Depends(get_db)):
+    # Require permission before storing a prompt or forwarding conversation data.
+    if not body.ai_consent:
+        raise HTTPException(status_code=400, detail="Agree to share your recipe request with OpenAI first.")
     now = datetime.now(timezone.utc).isoformat()
 
     if body.session_id:

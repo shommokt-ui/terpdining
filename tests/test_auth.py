@@ -58,3 +58,30 @@ def test_me_requires_token(client):
 def test_me_rejects_garbage_token(client):
     resp = client.get("/api/auth/me", headers={"Authorization": "Bearer not-a-jwt"})
     assert resp.status_code == 401
+
+
+def test_registration_rejects_short_and_oversized_passwords(client):
+    for password in ('', 'short', 'a' * 73, 'é' * 37):
+        resp = client.post('/api/auth/register', json={
+            'email': 'invalid@example.com', 'password': password,
+        })
+        assert resp.status_code == 422, resp.text
+
+
+def test_bcrypt_byte_limit_allows_boundary_and_rejects_oversized_login(client):
+    email = 'unicode@example.com'
+    password = 'é' * 36  # 72 UTF-8 bytes, although only 36 characters.
+    assert client.post('/api/auth/register', json={'email': email, 'password': password}).status_code == 201
+    assert client.post('/api/auth/login', json={'email': email, 'password': password}).status_code == 200
+    assert client.post('/api/auth/login', json={'email': email, 'password': password + 'é'}).status_code == 401
+
+
+def test_password_update_endpoints_reject_oversized_password(client, auth_headers):
+    resp = client.post('/api/auth/change-password', headers=auth_headers, json={
+        'current_password': 'password123', 'new_password': 'a' * 73,
+    })
+    assert resp.status_code == 422
+    resp = client.post('/api/auth/reset-password', json={
+        'token': 'irrelevant', 'new_password': 'é' * 37,
+    })
+    assert resp.status_code == 422

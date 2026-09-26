@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NavigationStateProvider } from './context/NavigationStateContext';
@@ -12,16 +13,30 @@ import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import MenuPage from './pages/MenuPage';
-import RecipePage from './pages/RecipePage';
 import TrackerPage from './pages/TrackerPage';
 import SettingsPage from './pages/SettingsPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsOfUsePage from './pages/TermsOfUsePage';
 
+// The Markdown renderer is only needed for recipes; keep it out of startup.
+const RecipePage = lazy(() => import('./pages/RecipePage'));
+
+function SessionNavigation({ children }) {
+  const { user } = useAuth();
+  // Clear private page state when accounts change, including on logout.
+  return <NavigationStateProvider key={user?.id ?? 'guest'}>{children}</NavigationStateProvider>;
+}
+
 function AppRoutes() {
-  const { user, loading } = useAuth();
+  const { user, loading, authError, retryAuth, browseAsGuest } = useAuth();
   const location = useLocation();
-  if (loading) return null;
+  if (loading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center text-umd-body">
+      <p role={authError ? 'alert' : 'status'}>{authError || 'Checking your saved sign-in…'}</p>
+      {authError && <button onClick={retryAuth} className="min-h-11 px-4 font-semibold text-umd-red">Try again</button>}
+      {authError && <button onClick={browseAsGuest} className="min-h-11 px-4 underline">Continue browsing as a guest</button>}
+    </div>
+  );
 
   const hideNavbar = location.pathname === '/login';
 
@@ -30,6 +45,7 @@ function AppRoutes() {
       {!hideNavbar && <Navbar />}
       {!hideNavbar && <AnnouncementBanner />}
       <div key={location.pathname} className="page-enter pb-16 md:pb-0">
+      <Suspense fallback={<p role="status" className="p-8 text-center text-umd-body">Loading recipes…</p>}>
       <Routes>
         <Route path="/login" element={user ? <Navigate to="/menu" /> : <LoginPage />} />
         <Route path="/register" element={user ? <Navigate to="/menu" /> : <RegisterPage />} />
@@ -43,6 +59,7 @@ function AppRoutes() {
         <Route path="/terms" element={<TermsOfUsePage />} />
         <Route path="*" element={<Navigate to="/menu" replace />} />
       </Routes>
+      </Suspense>
       </div>
       <BottomNav />
     </>
@@ -56,9 +73,9 @@ export default function App() {
         <ToastProvider>
           <BrowserRouter>
             <AuthProvider>
-              <NavigationStateProvider>
+              <SessionNavigation>
                 <AppRoutes />
-              </NavigationStateProvider>
+              </SessionNavigation>
             </AuthProvider>
           </BrowserRouter>
         </ToastProvider>
