@@ -46,3 +46,30 @@ instead of making a separate database call for every dish. The frontend cancels
 obsolete date requests and loads the recipe Markdown parser only when needed.
 These improvements do not replace production load testing; SQLite tests cannot
 measure the latency of the hosted PostgreSQL service.
+
+## Automatic menu refresh
+
+With `ENABLE_SCRAPE_SCHEDULER=true`, the API checks today's Maryland menu on
+startup and once an hour. Missing menus or data older than six hours trigger a
+refresh. A failed attempt retries at the next hourly check. With the flag set to
+`false`, both startup and periodic refresh are disabled.
+
+The scraper saves each hall/date before fetching nutrition labels. A failed hall
+keeps its previous data while other halls continue; a failed label keeps saved
+nutrition. Incomplete runs return a failure so scheduled-job logs expose them.
+An unrecognized source page is treated as an error, not an empty menu to publish.
+
+Sleeping web services cannot run background timers. The optional
+`.github/workflows/refresh-menus.yml` runs independently every six hours and can
+also be started manually from GitHub Actions. To activate it, put the workflow on
+the default branch and add the `DATABASE_URL` repository Actions secret pointing
+to the **same PostgreSQL database as the Render API**. Keep the connection string
+out of source control. The workflow fails explicitly if the secret is missing;
+it never silently writes to a disposable SQLite database. Its lighter dependency
+list is `requirements-scraper.txt`.
+
+Scheduled GitHub jobs can be delayed or disabled by GitHub (including inactivity
+on public repositories), so retain the API fallback and inspect failed runs.
+After setup, run the workflow manually once and verify `/api/menu/browse` reports
+current dates. Deploying source changes alone does not populate the secret or
+change a previously saved Render environment variable.

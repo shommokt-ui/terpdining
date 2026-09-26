@@ -14,12 +14,13 @@ import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import requests
 from bs4 import BeautifulSoup
 
 from src.db.loader import _upsert_food_item, _upsert_nutrition, _upsert_tags
-from src.db.models import get_connection, init_db
+from src.db.models import get_connection, init_db, is_postgres
 from src.scraping.parser import parse_menu_page, parse_nutrition_label
 
 BASE_URL = "https://nutrition.umd.edu/"
@@ -80,7 +81,11 @@ def scrape_menu(session: requests.Session, location_num: str, dt: date) -> dict[
     date_str = f"{dt.month}/{dt.day}/{dt.year}"
     soup = fetch_soup(session, BASE_URL, params={"locationNum": location_num, "dtdate": date_str})
     hall_name = DINING_HALLS.get(location_num, location_num)
-    return parse_menu_page(soup, hall_name, location_num, dt.isoformat())
+    menu = parse_menu_page(soup, hall_name, location_num, dt.isoformat())
+    if not menu['meals']:
+        # An error/challenge page must never erase a previously saved menu.
+        raise ValueError(f"No menu tabs found for {hall_name} on {dt}")
+    return menu
 
 
 def scrape_nutrition_label_http(session: requests.Session, url: str) -> dict[str, Any]:
@@ -128,82 +133,93 @@ def scrape_to_db(
     include_nutrition: bool = True,
     db_path: str | Path | None = None,
 ) -> dict[str, int]:
-    """Scrape all dining halls into SQLite incrementally.
+    """Save menus first, then refresh nutrition, using the configured database.
 
-    Returns {hall_date_key: menu_entries_count}.
+    Each hall/date commits independently. One failed hall cannot roll back other
+    halls, and slow nutrition pages cannot delay menus appearing in the app.
     """
     if start_date is None:
-        start_date = date.today()
+        start_date = datetime.now(ZoneInfo("America/New_York")).date()
 
     conn = get_connection(db_path)
-    init_db(conn)
     session = create_session()
-    now = _now_iso()
     results: dict[str, int] = {}
-    skipped_nutrition = 0
-    fetched_nutrition = 0
+    nutrition_items: dict[str, int] = {}
+    failures: list[str] = []
+    now = _now_iso()
+    try:
+        init_db(conn)
+        for day_offset in range(days):
+            dt = start_date + timedelta(days=day_offset)
+            for loc_num, hall_name in DINING_HALLS.items():
+                key = f"{dt.isoformat()}_{hall_name}"
+                try:
+                    log.info("Scraping %s on %s ...", hall_name, dt.isoformat())
+                    menu = scrape_menu(session, loc_num, dt)
+                    if is_postgres(conn):
+                        # Serialize menu replacement across the API and external
+                        # runner. Transaction locks also work with Neon pooling
+                        # and release automatically on commit or rollback.
+                        conn.execute("SELECT pg_advisory_xact_lock(847291603)")
+                    hall_id = _get_hall_id(conn, loc_num)
+                    conn.execute("DELETE FROM menu_entries WHERE hall_id = ? AND date = ?", (hall_id, dt.isoformat()))
+                    entries_count = 0
+                    hall_nutrition = {}
+                    for meal_name, stations in menu["meals"].items():
+                        for station in stations:
+                            for item in station["items"]:
+                                label_url = item.get("label_url")
+                                food_item_id = _upsert_food_item(conn, item["name"], label_url)
+                                _upsert_tags(conn, food_item_id, item.get("dietary_tags", []))
+                                conn.execute(
+                                    """INSERT INTO menu_entries (hall_id, date, meal, station, food_item_id, scraped_at)
+                                       VALUES (?, ?, ?, ?, ?, ?)
+                                       ON CONFLICT (hall_id, date, meal, station, food_item_id) DO NOTHING""",
+                                    (hall_id, dt.isoformat(), meal_name, station["station"], food_item_id, now),
+                                )
+                                if label_url:
+                                    hall_nutrition[label_url] = food_item_id
+                                entries_count += 1
+                    conn.commit()
+                    nutrition_items.update(hall_nutrition)
+                    results[key] = entries_count
+                    log.info("Saved %s: %d menu entries", key, entries_count)
+                except Exception:
+                    conn.rollback()
+                    failures.append(key)
+                    log.exception("Menu refresh failed for %s; keeping its previous menu", key)
+                finally:
+                    time.sleep(REQUEST_DELAY)
 
-    for day_offset in range(days):
-        dt = start_date + timedelta(days=day_offset)
-        for loc_num, hall_name in DINING_HALLS.items():
-            key = f"{dt.isoformat()}_{hall_name}"
-            log.info("Scraping %s on %s ...", hall_name, dt.isoformat())
+        log.info("Menu phase finished: %d entries saved before fetching nutrition", sum(results.values()))
+        if include_nutrition:
+            for label_url, food_item_id in nutrition_items.items():
+                requested_label = False
+                try:
+                    fresh = _nutrition_is_fresh(conn, label_url)
+                    conn.commit()  # Do not hold a database transaction during HTTP.
+                    if fresh:
+                        continue
+                    requested_label = True
+                    nutrition = scrape_nutrition_label_http(session, label_url)
+                    _upsert_nutrition(conn, food_item_id, nutrition)
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+                    failures.append(f"nutrition:{food_item_id}")
+                    log.exception("Nutrition refresh failed for food %s; keeping its saved nutrition", food_item_id)
+                finally:
+                    if requested_label:
+                        time.sleep(REQUEST_DELAY)
 
-            menu = scrape_menu(session, loc_num, dt)
-            hall_id = _get_hall_id(conn, loc_num)
-
-            # Clear existing menu entries for this hall+date
-            conn.execute("DELETE FROM menu_entries WHERE hall_id = ? AND date = ?", (hall_id, dt.isoformat()))
-
-            entries_count = 0
-            for meal_name, stations in menu["meals"].items():
-                for station in stations:
-                    station_name = station["station"]
-                    for item in station["items"]:
-                        name = item["name"]
-                        label_url = item.get("label_url")
-
-                        food_item_id = _upsert_food_item(conn, name, label_url)
-
-                        # Tags
-                        tags = item.get("dietary_tags", [])
-                        if tags:
-                            _upsert_tags(conn, food_item_id, tags)
-
-                        # Nutrition (incremental: skip if fresh)
-                        if include_nutrition and label_url:
-                            if _nutrition_is_fresh(conn, label_url):
-                                skipped_nutrition += 1
-                            else:
-                                try:
-                                    nutrition = scrape_nutrition_label_http(session, label_url)
-                                    _upsert_nutrition(conn, food_item_id, nutrition)
-                                    fetched_nutrition += 1
-                                except Exception:
-                                    log.warning("Failed to fetch nutrition for %s", name, exc_info=True)
-                                time.sleep(REQUEST_DELAY)
-
-                        # Menu entry
-                        conn.execute(
-                            """\
-                            INSERT INTO menu_entries (hall_id, date, meal, station, food_item_id, scraped_at)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                            ON CONFLICT (hall_id, date, meal, station, food_item_id) DO NOTHING
-                            """,
-                            (hall_id, dt.isoformat(), meal_name, station_name, food_item_id, now),
-                        )
-                        entries_count += 1
-
-            conn.commit()
-            results[key] = entries_count
-            log.info("  → %d menu entries", entries_count)
-
-    conn.close()
-    log.info(
-        "Done. Nutrition: %d fetched, %d skipped (fresh). %d total menu entries.",
-        fetched_nutrition, skipped_nutrition, sum(results.values()),
-    )
-    return results
+        # A scheduled runner must exit unsuccessfully on partial failure so it
+        # appears as a failed run, while already committed menus stay available.
+        if failures:
+            raise RuntimeError(f"Refresh incomplete: {len(failures)} failed updates ({', '.join(failures[:5])})")
+        return results
+    finally:
+        session.close()
+        conn.close()
 
 
 # ------------------------------------------------------------------

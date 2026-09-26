@@ -12,7 +12,8 @@ import os
 
 from dotenv import load_dotenv
 
-load_dotenv(override=True)
+# Deployment settings take precedence over a developer's local .env file.
+load_dotenv()
 
 
 def _guard_langsmith_tracing() -> None:
@@ -95,35 +96,38 @@ def on_startup():
 
         logging.getLogger(__name__).info("Running scheduled menu re-scrape")
         try:
+            # The scraper publishes menus before fetching slow nutrition pages.
+            # Keep nutrition enabled here so the fallback is also self-contained.
             scrape_to_db()
         except Exception:
             logging.getLogger(__name__).exception("Scheduled menu re-scrape failed")
 
     def _scrape_if_stale() -> None:
-        """Backfill menus missing today's date.
-
-        On hosts that spin idle instances down (Render free tier) the
-        24h interval job rarely gets to fire, so every startup checks
-        whether today's menus exist and scrapes if not.
-        """
-        from datetime import date
+        """Recover missing/stale menus on startup and retry while awake."""
+        from src.scraping.refresh import menu_refresh_needed
 
         conn = get_connection()
         try:
-            row = conn.execute("SELECT MAX(date) AS latest FROM menu_entries").fetchone()
-            latest = row["latest"] if row else None
+            needs_refresh = menu_refresh_needed(conn)
         finally:
             conn.close()
-        if latest is None or latest < date.today().isoformat():
+        if needs_refresh:
             logging.getLogger(__name__).info(
-                "Menu data stale (latest=%s) — scraping now", latest
+                "Today's menu is missing or stale — scraping now"
             )
             _rescrape()
 
     if (os.getenv("ENABLE_SCRAPE_SCHEDULER") or "true").strip().lower() != "false":
-        _scheduler.add_job(_rescrape, "interval", hours=24, id="rescrape", replace_existing=True)
+        from datetime import datetime, timezone
+
+        # Run immediately and check hourly. A failed startup refresh should not
+        # wait 24 hours to retry. max_instances also prevents overlapping runs.
+        _scheduler.add_job(
+            _scrape_if_stale, "interval", hours=1, id="rescrape",
+            replace_existing=True, next_run_time=datetime.now(timezone.utc),
+            max_instances=1, coalesce=True,
+        )
         _scheduler.start()
-        _scheduler.add_job(_scrape_if_stale, id="scrape_if_stale")
 
 
 @app.on_event("shutdown")

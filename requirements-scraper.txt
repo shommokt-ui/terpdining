@@ -1,0 +1,5 @@
+# Only the packages needed by run_scraper.py, without the API/AI dependencies.
+bs4
+python-dotenv
+requests
+psycopg[binary]
