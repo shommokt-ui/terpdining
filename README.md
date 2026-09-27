@@ -6,8 +6,7 @@
 
 [![CI](https://github.com/shommokt-ui/terpdining/actions/workflows/ci.yml/badge.svg)](https://github.com/shommokt-ui/terpdining/actions/workflows/ci.yml)
 
-UMD dining hall app. Check menus, track macros, and get AI recipe ideas from
-what's actually on the menu today, on web, iOS, and Android. Unofficial
+UMD dining hall app. Check menus, track macros, and get creative recipes from food thats available on that day, on web and IOS. Unofficial
 student project, not affiliated with or endorsed by the University of
 Maryland.
 
