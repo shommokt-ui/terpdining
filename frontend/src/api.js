@@ -10,7 +10,9 @@ function errorMessage(detail, fallback) {
   return fallback;
 }
 
-async function request(path, { method = 'GET', body, signal, timeoutMs = 60000 } = {}) {
+// Render's Free API can take about a minute to wake after being idle. Leave
+// enough time for that cold start to finish before telling the user it failed.
+async function request(path, { method = 'GET', body, signal, timeoutMs = 120000 } = {}) {
   const controller = new AbortController();
   const cancel = () => controller.abort();
   signal?.addEventListener('abort', cancel, { once: true });

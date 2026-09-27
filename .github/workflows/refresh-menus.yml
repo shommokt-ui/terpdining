@@ -3,8 +3,9 @@ name: Refresh dining menus
 on:
   workflow_dispatch:
   schedule:
-    # UTC: every six hours, away from the busy start of the hour.
-    - cron: '17 3,9,15,21 * * *'
+    # Refresh daily before breakfast in Maryland, when menu traffic is low.
+    - cron: '17 5 * * *'
+      timezone: America/New_York
 
 permissions:
   contents: read
@@ -16,7 +17,9 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # A full seven-day refresh took 36 minutes for menus and then needs time
+    # for nutrition labels; 45 minutes canceled before that phase finished.
+    timeout-minutes: 120
     env:
       # Must point to the SAME PostgreSQL database as the Render API.
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
