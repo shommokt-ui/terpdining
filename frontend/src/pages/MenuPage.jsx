@@ -330,9 +330,14 @@ function FavoritesAlert({ data, favorites }) {
   );
 }
 
-function MenuSkeleton() {
+function MenuSkeleton({ showWakeMessage = false }) {
   return (
     <div className="space-y-5">
+      {showWakeMessage && (
+        <p role="status" className="text-sm text-umd-body">
+          The menu server is waking up after being idle. This can take about a minute on the free plan.
+        </p>
+      )}
       <div className="flex items-center justify-between">
         <div className="skeleton h-9 w-48" />
         <div className="skeleton h-9 w-64" />
@@ -588,12 +593,24 @@ export default function MenuPage() {
   const [menuResult, setMenuResult] = useState(null);
   const [menuAttempt, setMenuAttempt] = useState(0);
   const loading = menuResult?.date !== date || menuResult?.attempt !== menuAttempt;
+  const [wakeMessageKey, setWakeMessageKey] = useState(null);
+  const requestKey = `${date}:${menuAttempt}`;
+  const showWakeMessage = loading && wakeMessageKey === requestKey;
   const data = loading ? null : menuResult.data;
   const menuError = loading ? '' : menuResult.error;
   const [favorites, setFavorites] = useState(() => new Set());
   const [expandSignal, setExpandSignal] = useState({ version: 0, open: true });
   const [summaries, setSummaries] = useState({});
   const [selectedDish, setSelectedDish] = useState(null);
+
+  // A sleeping Render Free API can take about a minute to answer its first request.
+  // Explain the pause only when loading lasts long enough to feel stuck.
+  useEffect(() => {
+    if (!loading) return undefined;
+
+    const timer = setTimeout(() => setWakeMessageKey(requestKey), 5000);
+    return () => clearTimeout(timer);
+  }, [loading, requestKey]);
 
   const openReviews = (item, hall) => setSelectedDish({ item, hall });
 
@@ -798,7 +815,7 @@ export default function MenuPage() {
   return (
     <div className="umd-container px-4 py-6 space-y-5">
       {loading ? (
-        <MenuSkeleton />
+        <MenuSkeleton showWakeMessage={showWakeMessage} />
       ) : menuError ? (
         <div className="py-16 text-center space-y-4">
           <h2 className="text-2xl umd-hero-title">Unable to load the menu</h2>
