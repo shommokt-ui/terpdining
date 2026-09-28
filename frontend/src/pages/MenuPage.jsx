@@ -18,6 +18,24 @@ import {
 } from '../lib/favoriteNotifications';
 
 const MEAL_ORDER = ['Breakfast', 'Brunch', 'Lunch', 'Dinner'];
+const MENU_CACHE_KEY = 'terpdining-menu-cache-v1';
+
+function readCachedMenu(date) {
+  try {
+    const cached = JSON.parse(localStorage.getItem(MENU_CACHE_KEY) || 'null');
+    return cached?.date === date && cached.data?.halls ? cached.data : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveCachedMenu(date, data) {
+  try {
+    localStorage.setItem(MENU_CACHE_KEY, JSON.stringify({ date, data }));
+  } catch {
+    // The menu still works when browser storage is disabled or full.
+  }
+}
 
 const INCLUDE_TAGS = ['vegan', 'vegetarian', 'HalalFriendly'];
 const EXCLUDE_TAGS = [
@@ -590,7 +608,10 @@ export default function MenuPage() {
 
   const toast = useToast();
   const { user } = useAuth();
-  const [menuResult, setMenuResult] = useState(null);
+  const [menuResult, setMenuResult] = useState(() => {
+    const cached = readCachedMenu(date);
+    return cached ? { date, attempt: 0, data: cached, error: '', stale: true } : null;
+  });
   const [menuAttempt, setMenuAttempt] = useState(0);
   const loading = menuResult?.date !== date || menuResult?.attempt !== menuAttempt;
   const [wakeMessageKey, setWakeMessageKey] = useState(null);
@@ -713,11 +734,17 @@ export default function MenuPage() {
     // Cancel the old date's request so slow responses cannot replace a newer menu.
     apiGet(`/api/menu/browse?dt=${date}`, { signal: controller.signal })
       .then((resp) => {
-        if (!controller.signal.aborted) setMenuResult({ date, attempt: menuAttempt, data: resp, error: '' });
+        if (!controller.signal.aborted) {
+          saveCachedMenu(date, resp);
+          setMenuResult({ date, attempt: menuAttempt, data: resp, error: '', stale: false });
+        }
       })
       .catch((error) => {
         if (!controller.signal.aborted) {
-          setMenuResult({ date, attempt: menuAttempt, data: null, error: error.message });
+          const cached = readCachedMenu(date);
+          setMenuResult(cached
+            ? { date, attempt: menuAttempt, data: cached, error: '', stale: true }
+            : { date, attempt: menuAttempt, data: null, error: error.message, stale: false });
         }
       });
     return () => controller.abort();
@@ -814,6 +841,11 @@ export default function MenuPage() {
   const tooFarAhead = isTooFarAhead(date, today, data?.latest_date);
   return (
     <div className="umd-container px-4 py-6 space-y-5">
+      {!loading && menuResult?.stale && (
+        <p role="status" className="text-sm text-umd-body">
+          Showing this device’s saved menu while the server reconnects.
+        </p>
+      )}
       {loading ? (
         <MenuSkeleton showWakeMessage={showWakeMessage} />
       ) : menuError ? (
