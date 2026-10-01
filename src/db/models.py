@@ -104,6 +104,12 @@ CREATE TABLE IF NOT EXISTS users (
     created_at    TEXT    NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS user_recipe_usage (
+    user_id     INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    generations INTEGER NOT NULL DEFAULT 0 CHECK (generations BETWEEN 0 AND 3),
+    updated_at  TEXT    NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS food_logs (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id       INTEGER NOT NULL REFERENCES users(id),
@@ -262,6 +268,12 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash TEXT   NOT NULL,
     display_name  TEXT,
     created_at    TEXT   NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS user_recipe_usage (
+    user_id     BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    generations INTEGER NOT NULL DEFAULT 0 CHECK (generations BETWEEN 0 AND 3),
+    updated_at  TEXT   NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS food_logs (

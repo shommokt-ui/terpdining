@@ -27,6 +27,7 @@ _MUTABLE_TABLES = [
     "user_goals",
     "recipe_messages",
     "recipe_sessions",
+    "user_recipe_usage",
     "password_resets",
     "users",
     "menu_entries",

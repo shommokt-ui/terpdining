@@ -69,8 +69,8 @@ export default function PrivacyPolicyPage() {
               </li>
               <li>
                 <strong className="text-umd-black">Recipe requests</strong>: the dining hall, meal,
-                cuisine, and dietary goals you submit to the AI recipe creator, along with the
-                generated suggestions, so you can revisit past recipe sessions.
+                cuisine, dietary goals, and conversation you submit to the AI recipe creator, along
+                with the generated suggestions, so you can revisit past recipe sessions.
               </li>
               <li>
                 <strong className="text-umd-black">Dish reviews</strong>: the star rating, optional
@@ -100,9 +100,11 @@ export default function PrivacyPolicyPage() {
               </li>
               <li>
                 To generate recipe suggestions: your recipe request (dining hall, meal, cuisine,
-                goals, and the day's available menu items) is sent to{' '}
-                <strong className="text-umd-black">OpenAI</strong> to generate the response.
-                OpenAI's API does not use this data to train its models by default.
+                goals, conversation, and the day's available menu items) is sent to{' '}
+                <strong className="text-umd-black">OpenAI</strong> only after you sign in and agree
+                to share it. Each account can make up to three AI requests total, including follow-ups.
+                Unchecking consent stops future requests. OpenAI's API does not use this data to
+                train its models by default.
               </li>
               <li>
                 To send you a password reset email via{' '}

@@ -270,9 +270,10 @@ def delete_account(
             detail="Current password is incorrect",
         )
 
-    # food_logs and recipe_sessions aren't ON DELETE CASCADE, so clear them first.
+    # Some account data does not cascade, so remove it before deleting the user.
     conn.execute("DELETE FROM food_logs WHERE user_id = ?", (user["id"],))
     conn.execute("DELETE FROM recipe_sessions WHERE user_id = ?", (user["id"],))
+    conn.execute("DELETE FROM user_recipe_usage WHERE user_id = ?", (user["id"],))
     conn.execute("DELETE FROM users WHERE id = ?", (user["id"],))
     conn.commit()
     return {"ok": True}

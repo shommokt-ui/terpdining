@@ -13,6 +13,7 @@ from src.db.models import get_connection
 
 router = APIRouter(prefix="/api", tags=["recipe"])
 
+MAX_RECIPE_GENERATIONS = 3
 _llm = None
 
 
@@ -43,6 +44,42 @@ class RecipeSessionOut(BaseModel):
     id: int
     title: str
     updated_at: str
+
+
+def _reserve_recipe_generation(conn, user_id: int) -> int:
+    """Atomically claim one of an account's three lifetime AI requests."""
+    now = datetime.now(timezone.utc).isoformat()
+    row = conn.execute(
+        """INSERT INTO user_recipe_usage (user_id, generations, updated_at)
+           VALUES (?, 1, ?)
+           ON CONFLICT (user_id) DO UPDATE
+             SET generations = user_recipe_usage.generations + 1,
+                 updated_at = excluded.updated_at
+             WHERE user_recipe_usage.generations < ?
+           RETURNING generations""",
+        (user_id, now, MAX_RECIPE_GENERATIONS),
+    ).fetchone()
+    if not row:
+        raise HTTPException(
+            status_code=429,
+            detail=f"You've used all {MAX_RECIPE_GENERATIONS} recipe requests for this account.",
+        )
+    conn.commit()
+    return row["generations"]
+
+
+@router.get("/recipe/usage")
+def get_recipe_usage(user=Depends(get_current_user), conn=Depends(get_db)):
+    """Return the signed-in account's remaining AI recipe requests."""
+    row = conn.execute(
+        "SELECT generations FROM user_recipe_usage WHERE user_id = ?", (user["id"],)
+    ).fetchone()
+    used = row["generations"] if row else 0
+    return {
+        "used": used,
+        "limit": MAX_RECIPE_GENERATIONS,
+        "remaining": MAX_RECIPE_GENERATIONS - used,
+    }
 
 
 @router.get("/recipe/sessions", response_model=list[RecipeSessionOut])
@@ -196,6 +233,7 @@ def recipe(body: RecipeRequest, user=Depends(get_current_user), conn=Depends(get
         if not body.message:
             raise HTTPException(status_code=400, detail="message required for follow-up")
 
+        _reserve_recipe_generation(conn, user["id"])
         conn.execute(
             "INSERT INTO recipe_messages (session_id, role, content, created_at) VALUES (?, ?, ?, ?)",
             (session_id, "user", body.message, now),
@@ -215,6 +253,8 @@ def recipe(body: RecipeRequest, user=Depends(get_current_user), conn=Depends(get
                 status_code=404,
                 detail=f"No menu data for {hall} {meal} on {dt}. Try a different date or dining hall.",
             )
+
+        _reserve_recipe_generation(conn, user["id"])
 
         system_msg = _RECIPE_SYSTEM_PROMPT.format(
             menu_items=menu_text, hall=hall, meal=meal, date=actual_date
