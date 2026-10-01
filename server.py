@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 
@@ -64,7 +65,58 @@ _cors_env = (os.getenv("CORS_ALLOWED_ORIGINS") or "").strip()
 _extra_origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
 ALLOWED_ORIGINS = _DEFAULT_ORIGINS + [o for o in _extra_origins if o not in _DEFAULT_ORIGINS]
 
-app = FastAPI(title="TerpDining API", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Prepare the database and optional menu refresh worker for the API."""
+    conn = get_connection()
+    try:
+        init_db(conn)
+    finally:
+        conn.close()
+
+    def _rescrape() -> None:
+        from src.scraping.scraper import scrape_to_db
+
+        logging.getLogger(__name__).info("Running scheduled menu re-scrape")
+        try:
+            # Publish menus before fetching slow nutrition pages.
+            scrape_to_db()
+        except Exception:
+            logging.getLogger(__name__).exception("Scheduled menu re-scrape failed")
+
+    def _scrape_if_stale() -> None:
+        """Recover missing or stale menus on startup and retry while awake."""
+        from src.scraping.refresh import menu_refresh_needed
+
+        conn = get_connection()
+        try:
+            needs_refresh = menu_refresh_needed(conn)
+        finally:
+            conn.close()
+        if needs_refresh:
+            logging.getLogger(__name__).info("Today's menu is missing or stale — scraping now")
+            _rescrape()
+
+    if (os.getenv("ENABLE_SCRAPE_SCHEDULER") or "true").strip().lower() != "false":
+        from datetime import datetime, timezone
+
+        # Retry hourly so a failed startup refresh does not wait a full day.
+        _scheduler.add_job(
+            _scrape_if_stale, "interval", hours=1, id="rescrape",
+            replace_existing=True, next_run_time=datetime.now(timezone.utc),
+            max_instances=1, coalesce=True,
+        )
+        _scheduler.start()
+
+    try:
+        yield
+    finally:
+        if _scheduler.running:
+            _scheduler.shutdown(wait=False)
+
+
+app = FastAPI(title="TerpDining API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -83,57 +135,6 @@ app.include_router(reviews_router)
 app.include_router(tracker_router)
 
 _scheduler = BackgroundScheduler()
-
-
-@app.on_event("startup")
-def on_startup():
-    conn = get_connection()
-    init_db(conn)
-    conn.close()
-
-    def _rescrape() -> None:
-        from src.scraping.scraper import scrape_to_db
-
-        logging.getLogger(__name__).info("Running scheduled menu re-scrape")
-        try:
-            # The scraper publishes menus before fetching slow nutrition pages.
-            # Keep nutrition enabled here so the fallback is also self-contained.
-            scrape_to_db()
-        except Exception:
-            logging.getLogger(__name__).exception("Scheduled menu re-scrape failed")
-
-    def _scrape_if_stale() -> None:
-        """Recover missing/stale menus on startup and retry while awake."""
-        from src.scraping.refresh import menu_refresh_needed
-
-        conn = get_connection()
-        try:
-            needs_refresh = menu_refresh_needed(conn)
-        finally:
-            conn.close()
-        if needs_refresh:
-            logging.getLogger(__name__).info(
-                "Today's menu is missing or stale — scraping now"
-            )
-            _rescrape()
-
-    if (os.getenv("ENABLE_SCRAPE_SCHEDULER") or "true").strip().lower() != "false":
-        from datetime import datetime, timezone
-
-        # Run immediately and check hourly. A failed startup refresh should not
-        # wait 24 hours to retry. max_instances also prevents overlapping runs.
-        _scheduler.add_job(
-            _scrape_if_stale, "interval", hours=1, id="rescrape",
-            replace_existing=True, next_run_time=datetime.now(timezone.utc),
-            max_instances=1, coalesce=True,
-        )
-        _scheduler.start()
-
-
-@app.on_event("shutdown")
-def on_shutdown():
-    if _scheduler.running:
-        _scheduler.shutdown(wait=False)
 
 
 @app.get("/api/health")
