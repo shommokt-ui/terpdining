@@ -3,9 +3,11 @@ name: Keep API warm during dining hours
 on:
   workflow_dispatch:
   schedule:
-    # UTC window covers roughly 6 AM–11 PM Eastern during daylight time and
-    # 5 AM–10 PM during standard time. Runs every 10 minutes, off the hour.
-    - cron: '7,17,27,37,47,57 0-2,10-23 * * *'
+    # Use a few long-lived jobs instead of a cron event for every ping.
+    # GitHub can delay or drop scheduled events, so frequent pings alone proved
+    # unreliable. These runs cover about 5 AM–11 PM Eastern year-round.
+    - cron: '7 5,11,17 * * *'
+      timezone: America/New_York
 
 permissions:
   contents: read
@@ -13,9 +15,22 @@ permissions:
 jobs:
   ping-api:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    # Leave five minutes before the next six-hour run begins. Render sleeps
+    # after 15 idle minutes, leaving some room for runner startup delays.
+    timeout-minutes: 360
     steps:
-      - name: Ping the lightweight health endpoint
-        run: >-
-          curl --fail --silent --show-error --max-time 90 --output /dev/null
-          https://terpdining.onrender.com/api/health
+      - name: Keep the API awake during dining hours
+        shell: bash
+        run: |
+          deadline=$((SECONDS + 355 * 60))
+          while (( SECONDS < deadline )); do
+            checked_at=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+            if curl --fail --silent --show-error --max-time 90 --output /dev/null \
+              --write-out "API returned HTTP %{http_code} in %{time_total}s\n" \
+              https://terpdining.onrender.com/api/health; then
+              echo "$checked_at: ping succeeded"
+            else
+              echo "::warning title=API warm-up ping failed::$checked_at: health check failed; the next ping will retry"
+            fi
+            sleep 540
+          done
