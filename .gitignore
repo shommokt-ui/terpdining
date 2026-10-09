@@ -23,3 +23,7 @@ frontend/dist/
 
 # Personal deployment notes (not for public repo)
 docs/DEPLOYMENT.md
+
+# Internal agent instructions (not for public repo)
+CLAUDE.md
+AGENTS.md
