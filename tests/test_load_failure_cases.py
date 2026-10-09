@@ -87,9 +87,8 @@ def test_slow_failing_ai_provider_returns_error_after_delay(db, auth_headers, mo
     with TestClient(app, raise_server_exceptions=False) as probe:
         start = time.perf_counter()
         response = probe.post("/api/recipe", headers=auth_headers,
-                              json={"ai_consent": True, "hall": "South Campus",
+                              json={"hall": "South Campus",
                                     "meal": "Lunch", "dt": "2026-10-09"})
         assert response.status_code == 502
         assert time.perf_counter() - start >= .1
-        assert probe.get("/api/recipe/usage", headers=auth_headers).json()["used"] == 0
         assert db.execute("SELECT COUNT(*) AS n FROM recipe_sessions").fetchone()["n"] == 0

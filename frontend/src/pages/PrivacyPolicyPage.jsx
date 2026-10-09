@@ -102,10 +102,9 @@ export default function PrivacyPolicyPage() {
               <li>
                 To generate recipe suggestions: your recipe request (dining hall, meal, cuisine,
                 goals, conversation, and the day's available menu items) is sent to{' '}
-                <strong className="text-umd-black">Google Gemini</strong> only after you sign in and agree
-                to share it. Each account can make up to three successful AI requests total, including follow-ups.
-                Unchecking consent stops future requests. On Gemini's free tier, Google may use
-                submitted requests and generated responses to improve its products and services.{' '}
+                <strong className="text-umd-black">Google Gemini</strong> once you sign in and create
+                a recipe. On Gemini's free tier, Google may use submitted requests and generated
+                responses to improve its products and services.{' '}
                 <ExternalLink
                   href="https://ai.google.dev/gemini-api/terms"
                   className="text-umd-red font-semibold hover:underline"

@@ -1,23 +1,4 @@
-"""Consent must be checked before saving or forwarding recipe conversations."""
-
-
-def test_recipe_requires_explicit_ai_consent(client, auth_headers, db, monkeypatch):
-    def unexpected_llm():
-        raise AssertionError('No model call is allowed without consent')
-
-    monkeypatch.setattr('src.api.recipe._get_llm', unexpected_llm)
-    for payload in ({}, {'ai_consent': False}, {'session_id': 1, 'message': 'Follow up'}):
-        response = client.post('/api/recipe', headers=auth_headers, json=payload)
-        assert response.status_code == 400
-        assert 'Google Gemini' in response.json()['detail']
-    assert db.execute('SELECT COUNT(*) AS n FROM recipe_sessions').fetchone()['n'] == 0
-    usage = client.get('/api/recipe/usage', headers=auth_headers).json()
-    assert usage == {'used': 0, 'limit': 3, 'remaining': 3}
-
-
-def test_recipe_usage_requires_a_signed_in_account(client):
-    response = client.get('/api/recipe/usage')
-    assert response.status_code in (401, 403)
+"""Recipe generation has no consent gate or per-account request cap: Gemini's free tier is free to use."""
 
 
 def test_gemini_requires_an_api_key_before_using_a_recipe_request(
@@ -26,7 +7,7 @@ def test_gemini_requires_an_api_key_before_using_a_recipe_request(
     monkeypatch.delenv('GEMINI_API_KEY', raising=False)
     monkeypatch.setenv('OPENAI_API_KEY', 'old-key-does-not-enable-gemini')
     response = client.post('/api/recipe', headers=auth_headers, json={
-        'ai_consent': True, 'session_id': 1, 'message': 'Make me a recipe',
+        'session_id': 1, 'message': 'Make me a recipe',
     })
     # An invalid session is rejected before provider configuration is checked.
     assert response.status_code == 404
@@ -40,17 +21,16 @@ def test_gemini_requires_an_api_key_before_using_a_recipe_request(
     ).fetchone()['id']
     db.commit()
     response = client.post('/api/recipe', headers=auth_headers, json={
-        'ai_consent': True, 'session_id': session_id, 'message': 'Make me a recipe',
+        'session_id': session_id, 'message': 'Make me a recipe',
     })
     assert response.status_code == 503
     assert 'not configured' in response.json()['detail']
-    assert client.get('/api/recipe/usage', headers=auth_headers).json()['used'] == 0
     assert db.execute('SELECT COUNT(*) AS n FROM recipe_messages').fetchone()['n'] == 0
 
     visible_error = client.post('/api/recipe', headers={
         **auth_headers, 'Origin': 'http://localhost:5173',
     }, json={
-        'ai_consent': True, 'session_id': session_id, 'message': 'Make me a recipe',
+        'session_id': session_id, 'message': 'Make me a recipe',
     })
     assert visible_error.status_code == 503
     assert visible_error.headers['access-control-allow-origin'] == 'http://localhost:5173'
@@ -77,7 +57,7 @@ def test_gemini_client_uses_google_endpoint_and_key(monkeypatch):
     assert calls[0]['model'] == 'gemini-3.8-flash'
 
 
-def test_failed_follow_up_refunds_request_and_removes_unsent_message(
+def test_failed_follow_up_removes_unsent_message(
     client, auth_headers, db, monkeypatch
 ):
     user_id = db.execute("SELECT id FROM users WHERE email = ?", ('terp@example.com',)).fetchone()['id']
@@ -95,17 +75,16 @@ def test_failed_follow_up_refunds_request_and_removes_unsent_message(
 
     monkeypatch.setattr('src.api.recipe._get_llm', lambda: FailingLLM())
     response = client.post('/api/recipe', headers=auth_headers, json={
-        'ai_consent': True, 'session_id': session_id, 'message': 'Try a new recipe',
+        'session_id': session_id, 'message': 'Try a new recipe',
     })
     assert response.status_code == 502
-    assert client.get('/api/recipe/usage', headers=auth_headers).json()['used'] == 0
     assert db.execute(
         'SELECT COUNT(*) AS n FROM recipe_messages WHERE session_id = ?',
         (session_id,),
     ).fetchone()['n'] == 0
 
 
-def test_account_can_send_only_three_consented_recipe_requests(
+def test_account_can_send_unlimited_recipe_requests(
     client, auth_headers, db, monkeypatch
 ):
     user_id = db.execute(
@@ -127,25 +106,15 @@ def test_account_can_send_only_three_consented_recipe_requests(
             return type('Response', (), {'content': 'A dining hall recipe.'})()
 
     monkeypatch.setattr('src.api.recipe._get_llm', lambda: FakeLLM())
-    for attempt in range(1, 4):
+    for attempt in range(1, 5):
         response = client.post('/api/recipe', headers=auth_headers, json={
-            'ai_consent': True,
             'session_id': session_id,
             'message': f'Please adjust recipe {attempt}',
         })
         assert response.status_code == 200, response.text
 
-    rejected = client.post('/api/recipe', headers=auth_headers, json={
-        'ai_consent': True,
-        'session_id': session_id,
-        'message': 'This fourth request must not be sent.',
-    })
-    assert rejected.status_code == 429
-    assert len(calls) == 3
+    assert len(calls) == 4
     assert db.execute(
         "SELECT COUNT(*) AS n FROM recipe_messages WHERE session_id = ?",
         (session_id,),
-    ).fetchone()['n'] == 6
-    assert client.get('/api/recipe/usage', headers=auth_headers).json() == {
-        'used': 3, 'limit': 3, 'remaining': 0,
-    }
+    ).fetchone()['n'] == 8

@@ -21,12 +21,9 @@ export default function RecipePage() {
   const toast = useToast();
   const { recipe, patchRecipe } = useNavigationState();
   const [sessions, setSessions] = useState([]);
-  const [recipeUsage, setRecipeUsage] = useState(null);
-  const [usageError, setUsageError] = useState('');
   const [activeSession, setActiveSession] = useState(() => recipe.activeSession);
   const [messages, setMessages] = useState(() => [...(recipe.messages || [])]);
   const [loading, setLoading] = useState(false);
-  const [aiConsent, setAiConsent] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(() => recipe.sidebarOpen);
   const [showForm, setShowForm] = useState(() => recipe.showForm ?? true);
   const [followUp, setFollowUp] = useState(() => recipe.followUp ?? '');
@@ -77,25 +74,9 @@ export default function RecipePage() {
     } catch { /* ignore */ }
   }, [user]);
 
-  const fetchRecipeUsage = useCallback(async () => {
-    if (!user) {
-      setRecipeUsage(null);
-      setUsageError('');
-      return;
-    }
-    try {
-      setRecipeUsage(await apiGet('/api/recipe/usage'));
-      setUsageError('');
-    } catch (error) {
-      setRecipeUsage(null);
-      setUsageError(error.message);
-    }
-  }, [user]);
-
   useEffect(() => {
     fetchSessions();
-    fetchRecipeUsage();
-  }, [fetchSessions, fetchRecipeUsage]);
+  }, [fetchSessions]);
 
   async function loadSession(id) {
     setActiveSession(id);
@@ -145,12 +126,6 @@ export default function RecipePage() {
       toast('Sign in to create recipes');
       return;
     }
-    if (!aiConsent) {
-      toast('Agree to share recipe details with Google Gemini before creating a recipe');
-      return;
-    }
-    if (!recipeUsage || recipeUsage.remaining <= 0) return;
-
     const userSummary = `Craving: ${cuisine || 'anything'} | Goals: ${goals.join(', ') || 'none'} | ${hall}, ${meal}`;
     setMessages([{ role: 'user', content: userSummary }]);
     setShowForm(false);
@@ -158,7 +133,6 @@ export default function RecipePage() {
 
     try {
       const data = await apiPost('/api/recipe', {
-        ai_consent: aiConsent,
         hall, meal, dt,
         cuisine: cuisine || 'anything',
         goals: goals.length > 0 ? goals : null,
@@ -173,7 +147,6 @@ export default function RecipePage() {
       setMessages((prev) => [...prev, { role: 'assistant', content: msg }]);
       setShowForm(true);
     } finally {
-      await fetchRecipeUsage();
       setLoading(false);
     }
   }
@@ -186,19 +159,12 @@ export default function RecipePage() {
       toast('Sign in to create recipes');
       return;
     }
-    if (!aiConsent) {
-      toast('Agree to share this conversation with Google Gemini before sending');
-      return;
-    }
-    if (!recipeUsage || recipeUsage.remaining <= 0) return;
-
     setMessages((prev) => [...prev, { role: 'user', content: text }]);
     setFollowUp('');
     setLoading(true);
 
     try {
       const data = await apiPost('/api/recipe', {
-        ai_consent: aiConsent,
         session_id: activeSession,
         message: text,
       });
@@ -206,7 +172,6 @@ export default function RecipePage() {
     } catch (err) {
       setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${err.message}` }]);
     } finally {
-      await fetchRecipeUsage();
       setLoading(false);
     }
   }
@@ -256,42 +221,6 @@ export default function RecipePage() {
 
       {/* main */}
       <div className="flex-1 flex flex-col min-w-0">
-        {user && recipeUsage && recipeUsage.remaining > 0 && (
-          <div className="px-4 py-3 text-xs text-umd-body bg-umd-gray-light">
-            <label className="flex items-start gap-3">
-              <input
-                type="checkbox"
-                checked={aiConsent}
-                onChange={(e) => setAiConsent(e.target.checked)}
-                className="mt-1 shrink-0"
-              />
-              <span>
-                I agree to send my recipe request, selected menu, dietary goals, and this conversation
-                to Google Gemini to generate recipes. On Gemini's free tier, Google may use requests
-                and responses to improve its products. Each successful recipe request or follow-up
-                uses one of my three total requests. Uncheck to stop future sharing.
-              </span>
-            </label>
-            <p className="mt-2 pl-6" role="status">
-              {recipeUsage.remaining} of {recipeUsage.limit} AI recipe requests remaining for this account.
-            </p>
-          </div>
-        )}
-        {user && !recipeUsage && (
-          <div className="px-4 py-3 text-xs text-umd-body bg-umd-gray-light" role={usageError ? 'alert' : 'status'}>
-            {usageError ? (
-              <>
-                Couldn’t check your remaining recipe requests.{' '}
-                <button type="button" onClick={fetchRecipeUsage} className="underline font-semibold">Try again</button>
-              </>
-            ) : 'Checking your remaining AI recipe requests…'}
-          </div>
-        )}
-        {user && recipeUsage?.remaining === 0 && (
-          <p className="px-4 py-3 text-xs text-umd-body bg-umd-gray-light" role="status">
-            You’ve used all {recipeUsage.limit} AI recipe requests for this account. You can still browse saved recipes.
-          </p>
-        )}
         <div className="px-3 py-2 border-b border-umd-gray bg-white dark:bg-[#1c1c1c] flex items-center gap-2">
           <button onClick={() => setSidebarOpen(!sidebarOpen)}
             className="px-2 py-1.5 flex items-center gap-1.5 hover:bg-umd-gray-light rounded-lg transition-colors text-umd-gray-dark text-xs font-semibold"
@@ -375,7 +304,7 @@ export default function RecipePage() {
                     className="bg-white dark:bg-[#1c1c1c] text-umd-black w-full border border-umd-gray rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red" />
                 </div>
 
-                <button type="submit" disabled={loading || !user || !recipeUsage?.remaining || !aiConsent}
+                <button type="submit" disabled={loading || !user}
                   className="w-full bg-umd-red hover:bg-umd-red-dark text-white font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50">
                   {loading ? 'Creating recipe...' : 'Create Recipe'}
                 </button>
@@ -411,7 +340,7 @@ export default function RecipePage() {
               placeholder="Ask for modifications, different cuisine, dessert ideas..."
               className="bg-white dark:bg-[#1c1c1c] text-umd-black flex-1 min-w-0 border border-umd-gray rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-umd-red focus:border-transparent"
               disabled={loading} />
-            <button type="submit" disabled={loading || !followUp.trim() || !aiConsent || !recipeUsage?.remaining}
+            <button type="submit" disabled={loading || !followUp.trim()}
               className="bg-umd-red hover:bg-umd-red-dark text-white font-semibold px-4 py-2.5 rounded-xl transition-colors disabled:opacity-40 shrink-0">
               Send
             </button>

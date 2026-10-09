@@ -15,7 +15,6 @@ from src.db.models import get_connection
 
 router = APIRouter(prefix="/api", tags=["recipe"])
 
-MAX_RECIPE_GENERATIONS = 3
 GEMINI_OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
 _llm = None
@@ -45,7 +44,6 @@ def _get_llm():
 
 
 class RecipeRequest(BaseModel):
-    ai_consent: bool = False
     session_id: int | None = None
     message: str | None = None
     hall: str | None = None
@@ -64,50 +62,6 @@ class RecipeSessionOut(BaseModel):
     id: int
     title: str
     updated_at: str
-
-
-def _reserve_recipe_generation(conn, user_id: int) -> int:
-    """Atomically claim one of an account's three lifetime AI requests."""
-    now = datetime.now(timezone.utc).isoformat()
-    row = conn.execute(
-        """INSERT INTO user_recipe_usage (user_id, generations, updated_at)
-           VALUES (?, 1, ?)
-           ON CONFLICT (user_id) DO UPDATE
-             SET generations = user_recipe_usage.generations + 1,
-                 updated_at = excluded.updated_at
-             WHERE user_recipe_usage.generations < ?
-           RETURNING generations""",
-        (user_id, now, MAX_RECIPE_GENERATIONS),
-    ).fetchone()
-    if not row:
-        raise HTTPException(
-            status_code=429,
-            detail=f"You've used all {MAX_RECIPE_GENERATIONS} recipe requests for this account.",
-        )
-    conn.commit()
-    return row["generations"]
-
-
-def _refund_recipe_generation(conn, user_id: int) -> None:
-    conn.execute(
-        "UPDATE user_recipe_usage SET generations = generations - 1 "
-        "WHERE user_id = ? AND generations > 0",
-        (user_id,),
-    )
-
-
-@router.get("/recipe/usage")
-def get_recipe_usage(user=Depends(get_current_user), conn=Depends(get_db)):
-    """Return the signed-in account's remaining AI recipe requests."""
-    row = conn.execute(
-        "SELECT generations FROM user_recipe_usage WHERE user_id = ?", (user["id"],)
-    ).fetchone()
-    used = row["generations"] if row else 0
-    return {
-        "used": used,
-        "limit": MAX_RECIPE_GENERATIONS,
-        "remaining": MAX_RECIPE_GENERATIONS - used,
-    }
 
 
 @router.get("/recipe/sessions", response_model=list[RecipeSessionOut])
@@ -244,9 +198,6 @@ You help students create delicious meals and recipe combinations using the ingre
 
 @router.post("/recipe", response_model=RecipeResponse)
 def recipe(body: RecipeRequest, user=Depends(get_current_user), conn=Depends(get_db)):
-    # Require permission before storing a prompt or forwarding conversation data.
-    if not body.ai_consent:
-        raise HTTPException(status_code=400, detail="Agree to share your recipe request with Google Gemini first.")
     now = datetime.now(timezone.utc).isoformat()
 
     if body.session_id:
@@ -262,7 +213,6 @@ def recipe(body: RecipeRequest, user=Depends(get_current_user), conn=Depends(get
             raise HTTPException(status_code=400, detail="message required for follow-up")
 
         llm = _get_llm()
-        _reserve_recipe_generation(conn, user["id"])
         pending_message_id = conn.execute(
             "INSERT INTO recipe_messages (session_id, role, content, created_at) "
             "VALUES (?, ?, ?, ?) RETURNING id",
@@ -285,7 +235,6 @@ def recipe(body: RecipeRequest, user=Depends(get_current_user), conn=Depends(get
             )
 
         llm = _get_llm()
-        _reserve_recipe_generation(conn, user["id"])
 
         system_msg = _RECIPE_SYSTEM_PROMPT.format(
             menu_items=menu_text, hall=hall, meal=meal, date=actual_date
@@ -340,7 +289,6 @@ def recipe(body: RecipeRequest, user=Depends(get_current_user), conn=Depends(get
             )
         else:
             conn.execute("DELETE FROM recipe_sessions WHERE id = ? AND user_id = ?", (session_id, user["id"]))
-        _refund_recipe_generation(conn, user["id"])
         conn.commit()
         log.warning("Gemini recipe request failed: %s", type(exc).__name__)
         raise HTTPException(status_code=502, detail="Recipe generation is temporarily unavailable. Please try again.") from exc
