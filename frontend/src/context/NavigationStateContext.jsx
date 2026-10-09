@@ -9,6 +9,7 @@ const defaultMenu = {
   date: null,
   activeHall: null,
   activeMeal: null,
+  activeMealManuallySelected: false,
   includeTags: [],
   excludeTags: [],
   showFavManager: false,

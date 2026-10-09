@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigationState } from '../context/NavigationStateContext';
 import { useToast } from '../context/ToastContext';
 import { MEAL_HOURS } from '../mealHours';
+import { defaultMenuMeal } from '../lib/defaultMenuMeal';
 import { getPreferredHall } from '../preferences';
 import StarRating from '../components/StarRating';
 import DishReviewsModal from '../components/DishReviewsModal';
@@ -598,7 +599,7 @@ export default function MenuPage() {
   const activeHall = menu.activeHall;
   const setActiveHall = (h) => patchMenu({ activeHall: h });
   const activeMeal = menu.activeMeal;
-  const setActiveMeal = (m) => patchMenu({ activeMeal: m });
+  const setActiveMeal = (m) => patchMenu({ activeMeal: m, activeMealManuallySelected: true });
   const includeTags = menu.includeTags;
   const excludeTags = menu.excludeTags;
   const searchQuery = menu.searchQuery;
@@ -799,9 +800,15 @@ export default function MenuPage() {
     if (data && activeHall && data.halls[activeHall]) {
       const meals = Object.keys(data.halls[activeHall]);
       const ordered = MEAL_ORDER.filter((m) => meals.includes(m));
-      if (!activeMeal || !ordered.includes(activeMeal)) patchMenu({ activeMeal: ordered[0] || null });
+      const available = ordered.includes(activeMeal);
+      if (!available || !menu.activeMealManuallySelected) {
+        const suggested = date === today ? defaultMenuMeal(ordered) : ordered[0] || null;
+        if (activeMeal !== suggested || menu.activeMealManuallySelected) {
+          patchMenu({ activeMeal: suggested, activeMealManuallySelected: false });
+        }
+      }
     }
-  }, [activeHall, data, activeMeal, patchMenu]);
+  }, [activeHall, data, activeMeal, date, today, menu.activeMealManuallySelected, patchMenu]);
 
   function toggleInclude(tag) {
     patchMenu({
