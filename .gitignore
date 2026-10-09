@@ -27,3 +27,7 @@ docs/DEPLOYMENT.md
 # Internal agent instructions (not for public repo)
 CLAUDE.md
 AGENTS.md
+
+# Local load-test runs and editor settings (not for public repo)
+load-results/
+.vscode/
