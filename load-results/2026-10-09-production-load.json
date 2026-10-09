@@ -1,0 +1,159 @@
+{
+  "url": "https://terpdining.onrender.com",
+  "started_at": "2026-10-09T19:31:07.131109+00:00",
+  "target_p95_ms": 1000,
+  "window_seconds": 30.0,
+  "max_seconds": 900.0,
+  "stages": [
+    {
+      "requests": 58,
+      "rps": 1.92,
+      "p50_ms": 121.3,
+      "p95_ms": 312.4,
+      "p99_ms": 449.3,
+      "error_percent": 0.0,
+      "errors": {},
+      "by_route": {
+        "/api/menu/browse": {
+          "requests": 20,
+          "p95_ms": 356.6
+        },
+        "/api/nutrition/search": {
+          "requests": 19,
+          "p95_ms": 127.6
+        },
+        "/api/reviews/summary": {
+          "requests": 19,
+          "p95_ms": 146.4
+        }
+      },
+      "users": 1
+    },
+    {
+      "requests": 113,
+      "rps": 3.74,
+      "p50_ms": 132.3,
+      "p95_ms": 337.1,
+      "p99_ms": 443.1,
+      "error_percent": 0.0,
+      "errors": {},
+      "by_route": {
+        "/api/menu/browse": {
+          "requests": 38,
+          "p95_ms": 424.6
+        },
+        "/api/nutrition/search": {
+          "requests": 37,
+          "p95_ms": 199.6
+        },
+        "/api/reviews/summary": {
+          "requests": 38,
+          "p95_ms": 248.5
+        }
+      },
+      "users": 2
+    },
+    {
+      "requests": 218,
+      "rps": 7.17,
+      "p50_ms": 257.3,
+      "p95_ms": 844.7,
+      "p99_ms": 995.0,
+      "error_percent": 0.0,
+      "errors": {},
+      "by_route": {
+        "/api/menu/browse": {
+          "requests": 75,
+          "p95_ms": 969.3
+        },
+        "/api/nutrition/search": {
+          "requests": 70,
+          "p95_ms": 421.1
+        },
+        "/api/reviews/summary": {
+          "requests": 73,
+          "p95_ms": 609.9
+        }
+      },
+      "users": 5
+    },
+    {
+      "requests": 223,
+      "rps": 7.08,
+      "p50_ms": 930.2,
+      "p95_ms": 2075.2,
+      "p99_ms": 2614.8,
+      "error_percent": 0.0,
+      "errors": {},
+      "by_route": {
+        "/api/menu/browse": {
+          "requests": 79,
+          "p95_ms": 2446.6
+        },
+        "/api/nutrition/search": {
+          "requests": 71,
+          "p95_ms": 1157.1
+        },
+        "/api/reviews/summary": {
+          "requests": 73,
+          "p95_ms": 1485.0
+        }
+      },
+      "users": 10
+    },
+    {
+      "requests": 194,
+      "rps": 5.88,
+      "p50_ms": 2633.0,
+      "p95_ms": 5568.9,
+      "p99_ms": 6638.0,
+      "error_percent": 0.0,
+      "errors": {},
+      "by_route": {
+        "/api/menu/browse": {
+          "requests": 72,
+          "p95_ms": 6314.8
+        },
+        "/api/nutrition/search": {
+          "requests": 60,
+          "p95_ms": 2961.3
+        },
+        "/api/reviews/summary": {
+          "requests": 62,
+          "p95_ms": 3631.0
+        }
+      },
+      "users": 20
+    }
+  ],
+  "resource_metrics": "Collect Render CPU/memory graphs and database connection count separately; unavailable to this client",
+  "date": "2026-10-09",
+  "hall": "251 North",
+  "warmup": {
+    "requests": 19,
+    "rps": 1.83,
+    "p50_ms": 123.4,
+    "p95_ms": 334.0,
+    "p99_ms": 389.3,
+    "error_percent": 0.0,
+    "errors": {},
+    "by_route": {
+      "/api/menu/browse": {
+        "requests": 7,
+        "p95_ms": 325.8
+      },
+      "/api/nutrition/search": {
+        "requests": 6,
+        "p95_ms": 333.2
+      },
+      "/api/reviews/summary": {
+        "requests": 6,
+        "p95_ms": 136.3
+      }
+    }
+  },
+  "stop_reason": "p95_over_1_second_twice",
+  "elapsed_seconds": 155.3,
+  "first_health_probe_seconds": 0.159,
+  "cold_start_confirmed": false
+}

@@ -503,19 +503,16 @@ function SearchResults({ data, query, includeTags, excludeTags, favorites, onTog
   );
 }
 
-function FavoritesModal({ open, favorites, onRemove, onClose }) {
+function FavoritesModal({ favorites, onRemove, onClose }) {
   const toast = useToast();
   const sorted = useMemo(() => [...favorites].sort(), [favorites]);
   const [notifyOn, setNotifyOn] = useState(() => getNotifyPref() === 'on');
 
   useEffect(() => {
-    if (!open) return;
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
+  }, [onClose]);
 
   async function toggleNotify() {
     if (notifyOn) {
@@ -682,11 +679,14 @@ export default function MenuPage() {
   // First time a favorite is added in the native app, ask (via the OS prompt) whether
   // they want alerts when a favorite is being served. Their answer becomes the pref;
   // it stays adjustable from the toggle in the favorites modal.
-  async function maybeAskNotifyPermission() {
+  async function maybeAskNotifyPermission(nextFavorites) {
     if (!isNativeApp() || getNotifyPref() !== null) return;
     const granted = await requestNotifyPermission();
     setNotifyPref(granted);
-    if (granted) toast("You'll get an alert when a favorite is being served");
+    if (granted) {
+      await scheduleUpcomingFavoriteNotifications(nextFavorites);
+      toast("You'll get an alert when a favorite is being served");
+    }
   }
 
   async function toggleFav(name) {
@@ -699,7 +699,7 @@ export default function MenuPage() {
       });
       if (!had) {
         toast("Favorites won't be saved unless you sign in");
-        maybeAskNotifyPermission();
+        maybeAskNotifyPermission(new Set([...favorites, name]));
       }
       return;
     }
@@ -707,7 +707,7 @@ export default function MenuPage() {
       if (had) await apiDelete(`/api/favorites/${encodeURIComponent(name)}`);
       else await apiPost('/api/favorites', { name });
       await refreshFavorites();
-      if (!had) maybeAskNotifyPermission();
+      if (!had) maybeAskNotifyPermission(new Set([...favorites, name]));
     } catch {
       toast(`Couldn't ${had ? 'remove' : 'save'} favorite. Check your connection.`);
     }
@@ -1097,12 +1097,11 @@ export default function MenuPage() {
         </>
       )}
 
-      <FavoritesModal
-        open={showFavManager}
+      {showFavManager && <FavoritesModal
         favorites={favorites}
         onRemove={removeFav}
         onClose={() => setShowFavManager(false)}
-      />
+      />}
 
       <DishReviewsModal
         open={selectedDish != null}

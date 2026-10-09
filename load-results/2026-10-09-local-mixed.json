@@ -1,0 +1,30 @@
+{
+  "date": "2026-09-15",
+  "elapsed_seconds": 8.06,
+  "requests": 250,
+  "rps": 31.0,
+  "by_route": {
+    "/api/menu/browse": {
+      "requests": 100,
+      "p95_ms": 789.7,
+      "statuses": {
+        "200": 100
+      }
+    },
+    "/api/nutrition/search": {
+      "requests": 100,
+      "p95_ms": 87.5,
+      "statuses": {
+        "200": 100
+      }
+    },
+    "/api/tracker/logs": {
+      "requests": 50,
+      "p95_ms": 87.6,
+      "statuses": {
+        "201": 50
+      }
+    }
+  },
+  "scrape": "completed without UMD network requests"
+}
