@@ -37,6 +37,7 @@ def _get_llm():
             api_key=key,
             base_url=GEMINI_OPENAI_BASE_URL,
             temperature=0.7,
+            max_tokens=700,
             timeout=30,
             max_retries=1,
         )
@@ -185,10 +186,10 @@ You help students create delicious meals and recipe combinations using the ingre
 1. **ONLY use items from the menu below.** Every ingredient in your recipes MUST appear in the "Available Menu Items" list. Do NOT invent, assume, or suggest ANY item that is not explicitly listed.
 2. Do NOT say "if available" or "check if they have" — you already know exactly what is available.  If an item is not on the list, it does not exist at this dining hall right now.
 3. Be creative with combinations — students can grab items from different stations and mix them.
-4. For each recipe, list the **exact menu items used** with their macros, then show the **total macros** (sum them up).
-5. Format each recipe with: Recipe Name, Items Used (with macros), How to Assemble, Total Nutrition.
+4. For each recipe, list the **exact menu items used** (names only, no per-item macros), then show the **total macros** (sum them up).
+5. Format each recipe with: Recipe Name, Items Used, How to Assemble (2-3 short steps), Total Nutrition.
 6. Respect the user's dietary goals and cuisine preferences.
-7. Suggest 2-3 recipe ideas per request.
+7. Suggest exactly 2 recipe ideas per request. Be concise — no extra commentary before, between, or after the recipes.
 8. Keep suggestions practical — students are assembling these at a dining hall, not cooking in a kitchen.
 
 ## Available Menu Items for {hall} — {meal} on {date}
