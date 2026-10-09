@@ -146,7 +146,7 @@ export default function RecipePage() {
       return;
     }
     if (!aiConsent) {
-      toast('Agree to share recipe details with OpenAI before creating a recipe');
+      toast('Agree to share recipe details with Google Gemini before creating a recipe');
       return;
     }
     if (!recipeUsage || recipeUsage.remaining <= 0) return;
@@ -187,7 +187,7 @@ export default function RecipePage() {
       return;
     }
     if (!aiConsent) {
-      toast('Agree to share this conversation with OpenAI before sending');
+      toast('Agree to share this conversation with Google Gemini before sending');
       return;
     }
     if (!recipeUsage || recipeUsage.remaining <= 0) return;
@@ -267,8 +267,9 @@ export default function RecipePage() {
               />
               <span>
                 I agree to send my recipe request, selected menu, dietary goals, and this conversation
-                to OpenAI to generate recipes. Each recipe request or follow-up attempt uses one of
-                my three total requests. Uncheck to stop future sharing.
+                to Google Gemini to generate recipes. On Gemini's free tier, Google may use requests
+                and responses to improve its products. Each successful recipe request or follow-up
+                uses one of my three total requests. Uncheck to stop future sharing.
               </span>
             </label>
             <p className="mt-2 pl-6" role="status">

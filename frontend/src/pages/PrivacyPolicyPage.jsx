@@ -1,4 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
+import ExternalLink from '../components/ExternalLink';
 
 function SectionIcon({ path }) {
   return (
@@ -27,7 +28,7 @@ export default function PrivacyPolicyPage() {
       <div className="mb-10">
         <span className="umd-overline text-umd-red text-xs">Legal</span>
         <h1 className="text-4xl umd-hero-title text-umd-black mt-1 mb-2">Privacy Policy</h1>
-        <p className="text-umd-body text-sm">Last updated July 2026</p>
+        <p className="text-umd-body text-sm">Last updated October 2026</p>
       </div>
 
       <div className="space-y-6">
@@ -101,10 +102,17 @@ export default function PrivacyPolicyPage() {
               <li>
                 To generate recipe suggestions: your recipe request (dining hall, meal, cuisine,
                 goals, conversation, and the day's available menu items) is sent to{' '}
-                <strong className="text-umd-black">OpenAI</strong> only after you sign in and agree
-                to share it. Each account can make up to three AI requests total, including follow-ups.
-                Unchecking consent stops future requests. OpenAI's API does not use this data to
-                train its models by default.
+                <strong className="text-umd-black">Google Gemini</strong> only after you sign in and agree
+                to share it. Each account can make up to three successful AI requests total, including follow-ups.
+                Unchecking consent stops future requests. On Gemini's free tier, Google may use
+                submitted requests and generated responses to improve its products and services.{' '}
+                <ExternalLink
+                  href="https://ai.google.dev/gemini-api/terms"
+                  className="text-umd-red font-semibold hover:underline"
+                >
+                  Google's Gemini API terms
+                </ExternalLink>
+                {' '}explain this data use.
               </li>
               <li>
                 To send you a password reset email via{' '}

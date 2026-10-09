@@ -4,9 +4,9 @@
 `requirements-dev.txt` adds the tools used by the test suite. Frontend/native
 packages are explained in [the frontend guide](../frontend/README.md).
 
-- `langchain[openai]`: installs the OpenAI integration used by
-  `src/api/recipe.py`. `ChatOpenAI` sends menu context and conversation messages
-  to the model; it does not run a model on the phone.
+- `langchain[openai]`: installs `ChatOpenAI`, which sends menu context and
+  conversation messages from `src/api/recipe.py` to Gemini's OpenAI-compatible
+  endpoint. The model does not run on the phone.
 - `bs4`: installs Beautiful Soup, which reads menu and nutrition HTML in
   `src/scraping/`. Python imports it as `bs4`.
 - `python-dotenv`: loads local `.env` configuration in server/scripts.

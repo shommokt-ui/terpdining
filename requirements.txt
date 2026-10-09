@@ -1,4 +1,4 @@
-# AI recipe generation: ChatOpenAI sends the selected menu and request to OpenAI.
+# AI recipe generation: ChatOpenAI sends the selected menu to Gemini's OpenAI-compatible endpoint.
 langchain[openai]
 # Scraping: parse menu HTML, read local config, and make HTTP requests.
 bs4

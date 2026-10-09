@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import os
 from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,13 +16,31 @@ from src.db.models import get_connection
 router = APIRouter(prefix="/api", tags=["recipe"])
 
 MAX_RECIPE_GENERATIONS = 3
+GEMINI_OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
 _llm = None
+log = logging.getLogger(__name__)
 
 
 def _get_llm():
+    key = (os.getenv("GEMINI_API_KEY") or "").strip()
+    if not key or key.endswith("...") or key in {"your-gemini-key-here", "your-key-here"}:
+        raise HTTPException(
+            status_code=503,
+            detail="Recipe generation is not configured yet.",
+        )
     global _llm
     if _llm is None:
-        _llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.7)
+        # Gemini accepts the OpenAI chat API, so the existing LangChain message
+        # flow can be kept while requests go to Google's endpoint.
+        _llm = ChatOpenAI(
+            model=(os.getenv("GEMINI_MODEL") or "").strip() or DEFAULT_GEMINI_MODEL,
+            api_key=key,
+            base_url=GEMINI_OPENAI_BASE_URL,
+            temperature=0.7,
+            timeout=30,
+            max_retries=1,
+        )
     return _llm
 
 
@@ -66,6 +86,14 @@ def _reserve_recipe_generation(conn, user_id: int) -> int:
         )
     conn.commit()
     return row["generations"]
+
+
+def _refund_recipe_generation(conn, user_id: int) -> None:
+    conn.execute(
+        "UPDATE user_recipe_usage SET generations = generations - 1 "
+        "WHERE user_id = ? AND generations > 0",
+        (user_id,),
+    )
 
 
 @router.get("/recipe/usage")
@@ -218,7 +246,7 @@ You help students create delicious meals and recipe combinations using the ingre
 def recipe(body: RecipeRequest, user=Depends(get_current_user), conn=Depends(get_db)):
     # Require permission before storing a prompt or forwarding conversation data.
     if not body.ai_consent:
-        raise HTTPException(status_code=400, detail="Agree to share your recipe request with OpenAI first.")
+        raise HTTPException(status_code=400, detail="Agree to share your recipe request with Google Gemini first.")
     now = datetime.now(timezone.utc).isoformat()
 
     if body.session_id:
@@ -233,11 +261,13 @@ def recipe(body: RecipeRequest, user=Depends(get_current_user), conn=Depends(get
         if not body.message:
             raise HTTPException(status_code=400, detail="message required for follow-up")
 
+        llm = _get_llm()
         _reserve_recipe_generation(conn, user["id"])
-        conn.execute(
-            "INSERT INTO recipe_messages (session_id, role, content, created_at) VALUES (?, ?, ?, ?)",
+        pending_message_id = conn.execute(
+            "INSERT INTO recipe_messages (session_id, role, content, created_at) "
+            "VALUES (?, ?, ?, ?) RETURNING id",
             (session_id, "user", body.message, now),
-        )
+        ).fetchone()["id"]
         conn.commit()
     else:
         hall = body.hall or "South Campus"
@@ -254,6 +284,7 @@ def recipe(body: RecipeRequest, user=Depends(get_current_user), conn=Depends(get
                 detail=f"No menu data for {hall} {meal} on {dt}. Try a different date or dining hall.",
             )
 
+        llm = _get_llm()
         _reserve_recipe_generation(conn, user["id"])
 
         system_msg = _RECIPE_SYSTEM_PROMPT.format(
@@ -285,10 +316,11 @@ def recipe(body: RecipeRequest, user=Depends(get_current_user), conn=Depends(get
             "INSERT INTO recipe_messages (session_id, role, content, created_at) VALUES (?, ?, ?, ?)",
             (session_id, "system", system_msg, now),
         )
-        conn.execute(
-            "INSERT INTO recipe_messages (session_id, role, content, created_at) VALUES (?, ?, ?, ?)",
+        pending_message_id = conn.execute(
+            "INSERT INTO recipe_messages (session_id, role, content, created_at) "
+            "VALUES (?, ?, ?, ?) RETURNING id",
             (session_id, "user", user_prompt, now),
-        )
+        ).fetchone()["id"]
         conn.commit()
 
     prev_msgs = conn.execute(
@@ -297,8 +329,21 @@ def recipe(body: RecipeRequest, user=Depends(get_current_user), conn=Depends(get
     ).fetchall()
     messages = [{"role": m["role"], "content": m["content"]} for m in prev_msgs]
 
-    llm = _get_llm()
-    ai_response = llm.invoke(messages)
+    try:
+        ai_response = llm.invoke(messages)
+    except Exception as exc:
+        conn.rollback()
+        if body.session_id:
+            conn.execute(
+                "DELETE FROM recipe_messages WHERE id = ? AND session_id = ?",
+                (pending_message_id, session_id),
+            )
+        else:
+            conn.execute("DELETE FROM recipe_sessions WHERE id = ? AND user_id = ?", (session_id, user["id"]))
+        _refund_recipe_generation(conn, user["id"])
+        conn.commit()
+        log.warning("Gemini recipe request failed: %s", type(exc).__name__)
+        raise HTTPException(status_code=502, detail="Recipe generation is temporarily unavailable. Please try again.") from exc
     reply = ai_response.content
 
     conn.execute(

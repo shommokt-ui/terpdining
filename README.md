@@ -32,9 +32,13 @@ Maryland.
 | Backend  | FastAPI, SQLite, JWT auth, bcrypt |
 | Frontend | React 19, Vite, Tailwind v4, React Router |
 | Mobile   | Capacitor (iOS) |
-| Recipes  | LangChain + OpenAI |
+| Recipes  | LangChain + Google Gemini |
 | Scraping | BeautifulSoup, requests, APScheduler |
 | Data     | nutrition.umd.edu |
+
+## Recipe API setup
+
+Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/api-keys) under the Google Cloud project you want to use. Set `GEMINI_API_KEY` in the backend environment (and in Render's environment variables for production), then restart or redeploy the backend. The project ID or number is not an API key. Recipe generation defaults to `gemini-3.8-flash`; set `GEMINI_MODEL` to choose a different Gemini model. Keep the key out of the frontend and out of Git.
 
 ## Developer guides
 
