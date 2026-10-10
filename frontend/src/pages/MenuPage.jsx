@@ -1006,11 +1006,10 @@ export default function MenuPage() {
           {!hallHasData ? (
             <div className="flex flex-col items-center text-center py-16 px-4">
               <div className="text-6xl mb-4">🐢</div>
-              <h2 className="text-2xl umd-hero-title text-umd-black mb-2">Terps are on their summer break!</h2>
+              <h2 className="text-2xl umd-hero-title text-umd-black mb-2">No menu data available</h2>
               <p className="text-umd-body text-sm max-w-md">
-                No menu found for <span className="font-semibold text-umd-black">{activeHall}</span> on
-                this date. It may be closed, since some dining halls shut down over breaks. Check UMD dining
-                hours to be sure, or pick another hall above.
+                Menu data isn’t available for <span className="font-semibold text-umd-black">{activeHall}</span> on
+                this date. Try another date or dining hall.
               </p>
             </div>
           ) : (
