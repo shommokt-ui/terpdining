@@ -20,42 +20,23 @@ Maryland.
 
 ## What it does
 
-- **Menu**: every dining hall by meal and station, with dietary badges and a date picker.
-- **Reviews**: rate and review dishes per dining hall.
+- **Menu**: every dining hall by meal and station, with dietary badges (vegan, halal, allergens) and a date picker.
 - **Favorites**: heart an item to get notified when it's back on the menu.
-- **Recipes**: AI suggests dishes built from what's actually on the menu that day.
-- **Tracker**: log food with realistic portions, see daily macros, goals synced across devices.
+- **Recipes**: AI suggests dishes assembled from what's actually available that day.
+- **Tracker**: log food with realistic portions, see daily macros on a donut chart, goals synced across devices.
 
 ## Stack
 
 | | |
 |---|---|
-| Backend  | FastAPI, JWT auth, bcrypt |
-| Database | PostgreSQL in production, SQLite locally |
-| Frontend | React 19, Vite, Tailwind v4 |
-| Mobile   | Capacitor (iOS, Android) |
+| Backend  | FastAPI, PostgreSQL (SQLite for tests), JWT auth, bcrypt |
+| Frontend | React 19, Vite, Tailwind v4, React Router |
+| Mobile   | Capacitor (iOS) |
 | Recipes  | LangChain |
 | Scraping | BeautifulSoup, requests, APScheduler |
 | Data     | nutrition.umd.edu |
 
-## Running locally
+## Recipe API setup
 
-```bash
-# backend
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements-dev.txt
-cp .env.example .env
-python run_scraper.py                  # load this week's menus
-python -m uvicorn server:app --reload
+To use the recipe generator use whichever AI model you prefer. Just add your API key and model name to the .env file.
 
-# frontend
-cd frontend && npm install && npm run dev
-```
-
-The backend uses PostgreSQL when `DATABASE_URL` is set (production) and a local SQLite file otherwise. Tests always use SQLite.
-
-For recipes, add your AI API key and model name to `.env`.
-
-## Docs
-
-[Frontend and iOS](frontend/README.md) · [Backend layout](docs/dependencies.md) · [Deployment](docs/DEPLOYMENT.md) · [Load testing](scripts/LOAD_TESTING.md)
