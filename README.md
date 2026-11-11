@@ -16,7 +16,7 @@ Maryland.
 
 | Menu | Tracker | Recipe Creator |
 |---|---|---|
-| <img src="docs/screenshots/menu.gif" alt="Menu" width="300"> | <img src="docs/screenshots/tracker.png" alt="Tracker" width="300"> | <img src="docs/screenshots/recipe.png" alt="Recipe" width="300"> |
+| <img src="docs/screenshots/menu.gif" alt="Menu" width="285"> | <img src="docs/screenshots/tracker.png" alt="Tracker" width="300"> | <img src="docs/screenshots/recipe.png" alt="Recipe" width="300"> |
 
 ## What it does
 
