@@ -20,27 +20,42 @@ Maryland.
 
 ## What it does
 
-- **Menu**: every dining hall by meal and station, with dietary badges (vegan, halal, allergens) and a date picker.
+- **Menu**: every dining hall by meal and station, with dietary badges and a date picker.
+- **Reviews**: rate and review dishes per dining hall.
 - **Favorites**: heart an item to get notified when it's back on the menu.
-- **Recipes**: AI suggests dishes assembled from what's actually available that day.
-- **Tracker**: log food with realistic portions, see daily macros on a donut chart, goals synced across devices.
+- **Recipes**: AI suggests dishes built from what's actually on the menu that day.
+- **Tracker**: log food with realistic portions, see daily macros, goals synced across devices.
 
 ## Stack
 
 | | |
 |---|---|
-| Backend  | FastAPI, SQLite, JWT auth, bcrypt |
-| Frontend | React 19, Vite, Tailwind v4, React Router |
-| Mobile   | Capacitor (iOS) |
-| Recipes  | LangChain + Google Gemini |
+| Backend  | FastAPI, JWT auth, bcrypt |
+| Database | PostgreSQL in production, SQLite locally |
+| Frontend | React 19, Vite, Tailwind v4 |
+| Mobile   | Capacitor (iOS, Android) |
+| Recipes  | LangChain |
 | Scraping | BeautifulSoup, requests, APScheduler |
 | Data     | nutrition.umd.edu |
 
-## Recipe API setup
+## Running locally
 
-Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/api-keys) under the Google Cloud project you want to use. Set `GEMINI_API_KEY` in the backend environment (and in Render's environment variables for production), then restart or redeploy the backend. The project ID or number is not an API key. Recipe generation defaults to `gemini-3.8-flash`; set `GEMINI_MODEL` to choose a different Gemini model. Keep the key out of the frontend and out of Git.
+```bash
+# backend
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+cp .env.example .env
+python run_scraper.py                  # load this week's menus
+python -m uvicorn server:app --reload
 
-## Developer guides
+# frontend
+cd frontend && npm install && npm run dev
+```
 
-- [Frontend packages and iOS build steps](frontend/README.md)
-- [Backend packages and source layout](docs/dependencies.md)
+The backend uses PostgreSQL when `DATABASE_URL` is set (production) and a local SQLite file otherwise. Tests always use SQLite.
+
+For recipes, add your AI API key and model name to `.env`.
+
+## Docs
+
+[Frontend and iOS](frontend/README.md) · [Backend layout](docs/dependencies.md) · [Deployment](docs/DEPLOYMENT.md) · [Load testing](scripts/LOAD_TESTING.md)
